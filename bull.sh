@@ -1172,6 +1172,9 @@ handle_menu_choice() {
                     fi
                     ;;
                 0|"")
+                    clear
+                    echo -e "\n${CYAN}Thanks for using BULL!${RESET}"
+                    echo -e "${CYAN}See you soon!${RESET}\n"
                     return
                     ;;
                 *)
