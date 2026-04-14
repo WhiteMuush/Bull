@@ -309,10 +309,41 @@ ensure_vagrant_box() {
     box="$(_os_to_box "${os}")" || return 1
     label="$(_os_label "${os}")"
 
-    # Already cached — nothing to do
+    # Check if box is registered AND if the actual image file exists
+    local box_registered=0
+    local image_exists=0
+    
     if "${VAGRANT_CMD}" box list 2>/dev/null | grep -q "${box}"; then
+        box_registered=1
+    fi
+    
+    # Check if the actual image file exists in vagrant.d
+    local vagrant_home="${VAGRANT_HOME:-${HOME}/.vagrant.d}"
+    local encoded_name="${box//\//-VAGRANTSLASH-}"
+    local image_path="${vagrant_home}/boxes/${encoded_name}/0/amd64/libvirt/box.img"
+    if [[ -f "${image_path}" ]]; then
+        image_exists=1
+    fi
+    
+    # For Parrot, check the specific qcow2 filename
+    if [[ "${os}" == "parrot" ]]; then
+        image_path="${vagrant_home}/boxes/${encoded_name}/0/amd64/libvirt/Parrot-security-7.1-amd64.qcow2"
+        if [[ -f "${image_path}" ]]; then
+            image_exists=1
+        fi
+    fi
+    
+    # Already registered AND image exists - we're good
+    if [[ "${box_registered}" -eq 1 ]] && [[ "${image_exists}" -eq 1 ]]; then
         log_debug "${label} box already cached"
         return 0
+    fi
+    
+    # Box registered but image missing - clean up and re-register
+    if [[ "${box_registered}" -eq 1 ]] && [[ "${image_exists}" -eq 0 ]]; then
+        log_warn "Box '${box}' registered but image file missing - cleaning up"
+        vagrant box remove "${box}" --force 2>/dev/null || true
+        rm -rf "${vagrant_home}/boxes/${encoded_name}" 2>/dev/null || true
     fi
 
     # Dry-run: skip the actual download
