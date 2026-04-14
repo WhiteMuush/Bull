@@ -9,7 +9,7 @@ Launch a fully-equipped pentest VM in seconds with pre-installed security tools,
 - **Encrypted /home** — User data protected with ecryptfs
 - **GPG credentials** — Passwords encrypted with AES256 (65M iterations)
 - **Snapshot support** — Rollback before risky operations
-- **Install and manage security tools** — Pre-installed toolkit with many pentest utilities, easily add more via the managerInstall and manage security tools
+- **Install and manage security tools** — Pre-installed toolkit with many pentest utilities, easily add more via the manager
 
 ## Requirements
 
@@ -30,6 +30,26 @@ sudo ./bull.sh
 # Or CLI
 sudo ./bull.sh create my-vm --os kali
 ```
+
+## ⚠️ Important: First Run
+
+> **⚠️ First installation can take 10-15 minutes** depending on your internet speed. This includes:
+> - Downloading and installing Vagrant (if not present)
+> - Downloading the Vagrant box (~2-4 GB for Kali/Parrot)
+> - Installing libvirt/VirtualBox dependencies
+> - Installing the vagrant-libvirt plugin
+
+Following dependencies may be installed:
+
+- **Vagrant** — VM provisioning from HashiCorp
+- **VirtualBox** — Oracle VM hypervisor (optional)
+- **libvirt** — KVM/QEMU virtualization
+- **qemu-kvm** — KVM kernel modules
+- **OVMF** — UEFI firmware for secure boot
+- **vagrant-libvirt** — Vagrant plugin for KVM
+- **jq** — JSON processing
+- **spice-vdagent** — Clipboard/resolution for SPICE
+- **xdotool** — X11 automation
 
 ## Storage
 
