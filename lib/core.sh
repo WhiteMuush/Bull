@@ -1439,7 +1439,7 @@ timestamp_iso() {
     date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
-# Detect OS
+# Detect OS with distribution info
 detect_os() {
     local uname_out
     uname_out="$(uname -s)"
@@ -1448,12 +1448,30 @@ detect_os() {
             if is_wsl; then
                 echo "wsl2"
             else
-                echo "linux"
+                # Try to detect distribution
+                if [[ -f /etc/os-release ]]; then
+                    source /etc/os-release
+                    echo "${ID:-linux}"
+                else
+                    echo "linux"
+                fi
             fi
             ;;
         Darwin*) echo "macos" ;;
         *)       echo "unknown" ;;
     esac
+}
+
+# Check if running on Ubuntu Server (for AppArmor issues)
+is_ubuntu_server() {
+    if [[ -f /etc/os-release ]]; then
+        source /etc/os-release
+        if [[ "${ID}" == "ubuntu" ]] && [[ -z "${DISPLAY}" ]]; then
+            # No display means likely server
+            return 0
+        fi
+    fi
+    return 1
 }
 
 check_bash_version

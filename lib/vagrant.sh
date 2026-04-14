@@ -1415,6 +1415,17 @@ create_vm() {
         # Save persistent log for post-mortem debugging
         cp "${vagrant_log}" "${vagrant_persist_log}" 2>/dev/null || true
         log_error "vagrant up failed. Full log saved to: ${vagrant_persist_log}"
+        
+        # Detect Ubuntu Server AppArmor issue
+        if grep -qi "cannot load AppArmor profile" "${vagrant_log}" 2>/dev/null; then
+            log_error ""
+            log_error "Ubuntu Server AppArmor issue detected."
+            log_error "Run on the host to fix:"
+            log_error "  sudo aa-complain libvirtd"
+            log_error "  sudo systemctl restart libvirtd"
+            log_error ""
+        fi
+        
         log_error "Last lines of output:"
         tail -30 "${vagrant_log}" | while IFS= read -r line; do
             log_error "  ${line}"
