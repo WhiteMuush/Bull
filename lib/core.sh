@@ -56,6 +56,10 @@ fi
 # registered providers (avoids Vagrant 2.4.x Hyper-V detection crash on WSL2).
 export VAGRANT_DEFAULT_PROVIDER="${BULL_PROVIDER}"
 
+# Ensure PATH includes common installation locations for Vagrant/VirtualBox
+# (especially after apt install on Ubuntu 24.04+ where they're in non-standard paths)
+export PATH="${HOME}/.local/bin:/opt/vagrant/bin:/opt/VirtualBox/bin:${PATH}"
+
 if is_wsl; then
     BULL_WSL=1
 
@@ -545,6 +549,42 @@ try_install_package() {
             brew install "${pkg_name}" || install_ok=1
             ;;
         apt)
+            # Vagrant n'est plus dans les dépôts Ubuntu 24.04+ (Noble)
+            # Installer depuis le dépôt officiel HashiCorp
+            if [[ "${cmd_name}" == "vagrant" ]]; then
+                log_info "Vagrant not in apt repos (Ubuntu 24.04+). Installing from HashiCorp..."
+                log_info "This requires adding the HashiCorp repository."
+                if [[ -f /etc/os-release ]]; then
+                    source /etc/os-release
+                    if [[ "${VERSION_ID}" == "24.04" || "${VERSION_ID}" == "24.10" || "${VERSION_CODENAME}" == "noble" ]]; then
+                        log_info "Detected Ubuntu 24.04+ (Noble). Adding HashiCorp repo..."
+                        wget -q -O /tmp/hashicorp.gpg https://apt.releases.hashicorp.com/gpg 2>/dev/null || {
+                            log_error "Failed to download HashiCorp GPG key"
+                            return 1
+                        }
+                        sudo mkdir -p /usr/share/keyrings
+                        sudo mv /tmp/hashicorp.gpg /usr/share/keyrings/hashicorp-archive-keyring.gpg
+                        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com ${VERSION_CODENAME:-jammy} main" | sudo tee /etc/apt/sources.list.d/hashicorp.list > /dev/null
+                        sudo apt-get update -qq
+                    fi
+                fi
+            fi
+            # VirtualBox not in Ubuntu 24.04+ repos either, try to add its repo
+            if [[ "${cmd_name}" == "VBoxManage" || "${pkg_name}" == "virtualbox" ]]; then
+                log_info "VirtualBox not in standard apt repos. Attempting to add Oracle repo..."
+                if [[ -f /etc/os-release ]]; then
+                    source /etc/os-release
+                    # Add VirtualBox repository
+                    echo "deb [arch=amd64] https://download.virtualbox.org/virtualbox/debian ${VERSION_CODENAME:-jammy} contrib" | sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
+                    wget -q -O /tmp/vbox.gpg https://www.virtualbox.org/download/oracle_vbox_2016.asc 2>/dev/null || \
+                        wget -q -O /tmp/vbox.gpg https://www.virtualbox.org/download/oracle_vbox.asc 2>/dev/null || true
+                    if [[ -f /tmp/vbox.gpg ]]; then
+                        sudo mkdir -p /usr/share/keyrings
+                        sudo mv /tmp/vbox.gpg /usr/share/keyrings/oracle-virtualbox-2016.gpg 2>/dev/null || true
+                    fi
+                    sudo apt-get update -qq || true
+                fi
+            fi
             sudo apt-get update -qq && sudo apt-get install -y "${pkg_name}" || install_ok=1
             ;;
         dnf)
@@ -1046,6 +1086,13 @@ _ensure_libvirt_deps() {
         fi
 
         # Install vagrant-libvirt plugin
+        # First ensure vagrant is available (may have just been installed)
+        export PATH="${HOME}/.local/bin:/opt/vagrant/bin:${PATH}"
+        if ! command -v vagrant &>/dev/null; then
+            log_error "vagrant command not found. Please restart your terminal or source ~/.bashrc"
+            log_error "Vagrant was installed but PATH needs to be updated."
+            return 1
+        fi
         if ! vagrant plugin list 2>/dev/null | grep -q "vagrant-libvirt"; then
             log_info "Installing vagrant-libvirt plugin..."
             if vagrant plugin install vagrant-libvirt 2>&1; then
