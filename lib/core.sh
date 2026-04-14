@@ -1301,8 +1301,11 @@ ensure_dependencies() {
     fi
 
     # sshpass is needed for custom user SSH connections (non-vagrant users)
+    # It's optional - we just warn if missing but don't block
     if ! command -v sshpass &>/dev/null; then
-        require_command "sshpass" "sshpass" "" || true  # soft fail - only needed for custom users
+        if ! require_command "sshpass" "sshpass" "" 2>/dev/null; then
+            log_warn "sshpass not installed - custom user SSH may not work"
+        fi
     fi
 
     if ! command -v "${VAGRANT_CMD}" &>/dev/null; then
