@@ -427,7 +427,7 @@ _parrot_download_ova() {
     local resume_flag=""
     if [[ -f "${partial_path}" ]]; then
         local partial_size
-        partial_size=$(stat -c%s "${partial_path}" 2>/dev/null || echo 0)
+        partial_size=$(stat -c%s "${partial_path}" 2>/dev/null || stat -f%z "${partial_path}" 2>/dev/null || echo 0)
         if [[ "${partial_size}" -gt 0 ]]; then
             log_info "Resuming from partial download (${partial_size} bytes already downloaded)..."
             resume_flag="-C -"
@@ -490,7 +490,7 @@ _parrot_download_qcow2() {
     local resume_flag=""
     if [[ -f "${partial_path}" ]]; then
         local partial_size
-        partial_size=$(stat -c%s "${partial_path}" 2>/dev/null || echo 0)
+        partial_size=$(stat -c%s "${partial_path}" 2>/dev/null || stat -f%z "${partial_path}" 2>/dev/null || echo 0)
         if [[ "${partial_size}" -gt 0 ]]; then
             log_info "Resuming from partial download (${partial_size} bytes already downloaded)..."
             resume_flag="-C -"
