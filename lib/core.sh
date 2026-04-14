@@ -556,14 +556,28 @@ try_install_package() {
                 log_info "This requires adding the HashiCorp repository."
                 if [[ -f /etc/os-release ]]; then
                     source /etc/os-release
-                    if [[ "${VERSION_ID}" == "24.04" || "${VERSION_ID}" == "24.10" || "${VERSION_CODENAME}" == "noble" ]]; then
+                    if [[ "${VERSION_ID}" == "24.04" || "${VERSION_ID}" == "24.10" || "${VERSION_CODENAME}" == "noble" || "${VERSION_ID}" == "25.04" ]]; then
                         log_info "Detected Ubuntu 24.04+ (Noble). Adding HashiCorp repo..."
-                        wget -q -O /tmp/hashicorp.gpg https://apt.releases.hashicorp.com/gpg 2>/dev/null || {
-                            log_error "Failed to download HashiCorp GPG key"
-                            return 1
-                        }
-                        sudo mkdir -p /usr/share/keyrings
-                        sudo mv /tmp/hashicorp.gpg /usr/share/keyrings/hashicorp-archive-keyring.gpg
+                        
+                        # Remove old source if exists
+                        sudo rm -f /etc/apt/sources.list.d/hashicorp.list 2>/dev/null || true
+                        
+                        # Use curl with proper GPG key handling (binary format from HashiCorp)
+                        if command -v curl &>/dev/null; then
+                            curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg 2>/dev/null || {
+                                # Fallback: try wget
+                                wget -q -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg 2>/dev/null || {
+                                    log_error "Failed to import HashiCorp GPG key"
+                                    return 1
+                                }
+                            }
+                        else
+                            wget -q -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg 2>/dev/null || {
+                                log_error "Failed to import HashiCorp GPG key"
+                                return 1
+                            }
+                        fi
+                        
                         echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com ${VERSION_CODENAME:-jammy} main" | sudo tee /etc/apt/sources.list.d/hashicorp.list > /dev/null
                         sudo apt-get update -qq
                     fi
@@ -576,11 +590,11 @@ try_install_package() {
                     source /etc/os-release
                     # Add VirtualBox repository
                     echo "deb [arch=amd64] https://download.virtualbox.org/virtualbox/debian ${VERSION_CODENAME:-jammy} contrib" | sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
-                    wget -q -O /tmp/vbox.gpg https://www.virtualbox.org/download/oracle_vbox_2016.asc 2>/dev/null || \
-                        wget -q -O /tmp/vbox.gpg https://www.virtualbox.org/download/oracle_vbox.asc 2>/dev/null || true
-                    if [[ -f /tmp/vbox.gpg ]]; then
-                        sudo mkdir -p /usr/share/keyrings
-                        sudo mv /tmp/vbox.gpg /usr/share/keyrings/oracle-virtualbox-2016.gpg 2>/dev/null || true
+                    # Get GPG key properly
+                    if command -v curl &>/dev/null; then
+                        curl -fsSL https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --dearmor -o /usr/share/keyrings/oracle-virtualbox-2016.gpg 2>/dev/null || true
+                    else
+                        wget -q -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --dearmor -o /usr/share/keyrings/oracle-virtualbox-2016.gpg 2>/dev/null || true
                     fi
                     sudo apt-get update -qq || true
                 fi
