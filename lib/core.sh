@@ -1069,6 +1069,11 @@ _ensure_libvirt_deps() {
         else
             # Pool doesn't exist — create it
             log_info "Creating libvirt 'default' storage pool..."
+            # First create the target directory if it doesn't exist
+            if [[ ! -d /var/lib/libvirt/images ]]; then
+                sudo mkdir -p /var/lib/libvirt/images
+                sudo chmod 755 /var/lib/libvirt/images
+            fi
             if sudo virsh pool-define-as default dir --target /var/lib/libvirt/images 2>&1; then
                 sudo virsh pool-build default 2>&1 || true
                 sudo virsh pool-start default 2>&1 || true
@@ -1203,6 +1208,25 @@ check_dependencies() {
         fi
         if command -v virsh &>/dev/null; then
             log_success "libvirt detected ($(virsh --version 2>/dev/null))"
+            
+            # Check storage pool
+            if virsh pool-info default &>/dev/null; then
+                log_success "Storage pool 'default' ready"
+            else
+                log_warn "Storage pool 'default' not configured - creating..."
+                if [[ ! -d /var/lib/libvirt/images ]]; then
+                    sudo mkdir -p /var/lib/libvirt/images
+                    sudo chmod 755 /var/lib/libvirt/images
+                fi
+                if sudo virsh pool-define-as default dir --target /var/lib/libvirt/images 2>/dev/null; then
+                    sudo virsh pool-start default 2>/dev/null
+                    sudo virsh pool-autostart default 2>/dev/null
+                    log_success "Storage pool 'default' created"
+                else
+                    log_error "Failed to create storage pool"
+                    all_ok=1
+                fi
+            fi
         else
             log_warn "libvirt-clients not installed"
             all_ok=1
