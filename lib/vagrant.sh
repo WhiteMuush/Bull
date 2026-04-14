@@ -1117,9 +1117,16 @@ generate_vagrantfile() {
     if [[ "${os}" == "parrot" ]]; then
         # Parrot Security OS uses UEFI boot (GPT + EFI System Partition).
         # Without the OVMF firmware loader, vagrant-libvirt defaults to SeaBIOS
-        # and the VM won't boot. Enable UEFI by default.
-        # Set BULL_NO_UEFI=1 to force legacy BIOS if needed.
-        if [[ "${BULL_NO_UEFI:-0}" != "1" ]]; then
+        # and the VM won't boot. Try UEFI first, but fall back to SeaBIOS
+        # if OVMF files are not accessible (e.g. Ubuntu Server with AppArmor restrictions).
+        # Set BULL_FORCE_UEFI=1 to force UEFI even if files are not accessible.
+        local ovmf_accessible=0
+        if [[ -r "/usr/share/OVMF/OVMF_CODE_4M.fd" ]] 2>/dev/null && \
+           [[ -r "/usr/share/OVMF/OVMF_VARS_4M.fd" ]] 2>/dev/null; then
+            ovmf_accessible=1
+        fi
+        
+        if [[ "${ovmf_accessible}" -eq 1 ]] || [[ "${BULL_FORCE_UEFI:-0}" == "1" ]]; then
             uefi="true"
             ovmf_loader="/usr/share/OVMF/OVMF_CODE_4M.fd"
             if [[ -f "/usr/share/OVMF/OVMF_VARS_4M.fd" ]]; then
@@ -1132,8 +1139,10 @@ generate_vagrantfile() {
                 log_warn "OVMF VARS template not found"
                 ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.fd"
             fi
+            log_info "Using UEFI for Parrot"
         else
-            log_info "Using SeaBIOS (BIOS legacy) for Parrot - set BULL_NO_UEFI=0 for UEFI"
+            log_info "Using SeaBIOS (BIOS legacy) for Parrot - OVMF not accessible"
+            log_info "Set BULL_FORCE_UEFI=1 to force UEFI anyway"
         fi
     fi
 
