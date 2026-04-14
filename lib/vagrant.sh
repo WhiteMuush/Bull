@@ -689,11 +689,33 @@ _ensure_parrot_qcow2() {
     # Vagrant encodes "/" in box names as "-VAGRANTSLASH-"
     local encoded_name
     encoded_name="${box_name//\//-VAGRANTSLASH-}"
+    local version="0"
 
-    # Already registered?
+    # Check if box is registered AND if the actual qcow2 file exists
+    local box_registered=0
+    local qcow2_exists=0
+    
     if "${VAGRANT_CMD}" box list 2>/dev/null | grep -q "${box_name}"; then
-        log_debug "Parrot box '${box_name}' already registered"
+        box_registered=1
+    fi
+    
+    # Check if the qcow2 file actually exists
+    local qcow2_path="${vagrant_home}/boxes/${encoded_name}/${version}/amd64/libvirt/Parrot-security-7.1-amd64.qcow2"
+    if [[ -f "${qcow2_path}" ]]; then
+        qcow2_exists=1
+    fi
+    
+    # Already registered AND file exists - we're good
+    if [[ "${box_registered}" -eq 1 ]] && [[ "${qcow2_exists}" -eq 1 ]]; then
+        log_debug "Parrot box '${box_name}' already registered with valid qcow2"
         return 0
+    fi
+    
+    # Box registered but qcow2 missing - clean up and re-register
+    if [[ "${box_registered}" -eq 1 ]] && [[ "${qcow2_exists}" -eq 0 ]]; then
+        log_warn "Parrot box registered but qcow2 file missing - cleaning up"
+        vagrant box remove "${box_name}" --force 2>/dev/null || true
+        rm -rf "${vagrant_home}/boxes/${encoded_name}" 2>/dev/null || true
     fi
 
     # Dry-run: skip the actual download and registration
