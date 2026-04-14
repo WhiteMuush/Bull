@@ -1080,19 +1080,24 @@ generate_vagrantfile() {
     local ovmf_loader=""
     local ovmf_vars=""
     if [[ "${os}" == "parrot" ]]; then
-        uefi="true"
-        ovmf_loader="/usr/share/OVMF/OVMF_CODE_4M.fd"
-        # Ubuntu's ovmf package may not ship OVMF_VARS_4M.fd (plain).
-        # Fall back to .ms.fd or .snakeoil.fd if the plain file is missing.
-        if [[ -f "/usr/share/OVMF/OVMF_VARS_4M.fd" ]]; then
-            ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.fd"
-        elif [[ -f "/usr/share/OVMF/OVMF_VARS_4M.ms.fd" ]]; then
-            ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.ms.fd"
-        elif [[ -f "/usr/share/OVMF/OVMF_VARS_4M.snakeoil.fd" ]]; then
-            ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.snakeoil.fd"
+        # Disable UEFI by default due to AppArmor restrictions on Ubuntu Server
+        # that block access to OVMF files. Parrot boots fine with SeaBIOS (BIOS legacy).
+        # Set BULL_FORCE_UEFI=1 to force UEFI if needed.
+        if [[ "${BULL_FORCE_UEFI:-0}" == "1" ]]; then
+            uefi="true"
+            ovmf_loader="/usr/share/OVMF/OVMF_CODE_4M.fd"
+            if [[ -f "/usr/share/OVMF/OVMF_VARS_4M.fd" ]]; then
+                ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.fd"
+            elif [[ -f "/usr/share/OVMF/OVMF_VARS_4M.ms.fd" ]]; then
+                ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.ms.fd"
+            elif [[ -f "/usr/share/OVMF/OVMF_VARS_4M.snakeoil.fd" ]]; then
+                ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.snakeoil.fd"
+            else
+                log_warn "OVMF VARS template not found"
+                ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.fd"
+            fi
         else
-            log_warn "OVMF VARS template not found — UEFI boot may fail"
-            ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.fd"
+            log_info "Using SeaBIOS (BIOS legacy) for Parrot - set BULL_FORCE_UEFI=1 for UEFI"
         fi
     fi
 
