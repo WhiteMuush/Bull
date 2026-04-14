@@ -264,7 +264,6 @@ cleanup() {
 # Restore terminal to clean state when leaving the TUI
 _tui_restore() {
     printf '\033[?25h'    # show cursor
-    printf '\033[?1049l'  # exit alternate screen buffer (restores previous content)
     printf '\033[0m'      # reset all color/attribute escapes
     stty sane 2>/dev/null || true  # restore echo, icanon, etc. (broken by password prompts)
 }

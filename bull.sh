@@ -1174,7 +1174,8 @@ handle_menu_choice() {
                 0|"")
                     clear
                     echo -e "\n${CYAN}Thanks for using BULL!${RESET}"
-                    echo -e "${CYAN}See you soon!${RESET}\n"
+                    echo -e "${RED}See you soon! <3${RESET}\n"
+                    echo -e "Creator: ${CREATOR_LINK}"
                     return
                     ;;
                 *)
@@ -1216,7 +1217,10 @@ handle_menu_choice() {
             log_info "BULL ready. Run 'bull' or 'source ~/.bashrc' to use."
             ;;
         0)
-            echo -e "\n${BRIGHT_CYAN}Exiting BULL...${RESET}"
+            clear
+            echo -e "\n${CYAN}Thanks for using BULL!${RESET}"
+            echo -e "${RED}See you soon! <3${RESET}\n"
+            echo -e "Creator: ${CREATOR_LINK}"
             exit 0
             ;;
         *)
