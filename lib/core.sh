@@ -1300,6 +1300,11 @@ ensure_dependencies() {
         require_command "jq" "jq" "https://stedolan.github.io/jq/download/" || missing=1
     fi
 
+    # sshpass is needed for custom user SSH connections (non-vagrant users)
+    if ! command -v sshpass &>/dev/null; then
+        require_command "sshpass" "sshpass" "" || true  # soft fail - only needed for custom users
+    fi
+
     if ! command -v "${VAGRANT_CMD}" &>/dev/null; then
         if [[ "${BULL_PROVIDER}" == "libvirt" ]]; then
             require_command "vagrant" "vagrant" "https://developer.hashicorp.com/vagrant/install" || missing=1
