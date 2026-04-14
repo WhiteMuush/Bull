@@ -110,10 +110,13 @@ if [[ -n "${BULL_VM_USER}" ]] && [[ -n "${BULL_VM_PASS}" ]]; then
 
     # Copy Vagrant's SSH authorized key to the custom user so 'bull connect' works.
     user_home=$(getent passwd "${BULL_VM_USER}" | cut -d: -f6)
-    if [[ -f /home/vagrant/.ssh/authorized_keys ]] && [[ -n "${user_home}" ]]; then
+    # Parrot default user is "user", not "vagrant" — check both paths
+    vagrant_key_source="/home/vagrant/.ssh/authorized_keys"
+    [[ -f /home/user/.ssh/authorized_keys ]] && vagrant_key_source="/home/user/.ssh/authorized_keys"
+    if [[ -f "${vagrant_key_source}" ]] && [[ -n "${user_home}" ]]; then
         install -d -m 700 -o "${BULL_VM_USER}" -g "${BULL_VM_USER}" "${user_home}/.ssh"
         install -m 600 -o "${BULL_VM_USER}" -g "${BULL_VM_USER}" \
-            /home/vagrant/.ssh/authorized_keys "${user_home}/.ssh/authorized_keys"
+            "${vagrant_key_source}" "${user_home}/.ssh/authorized_keys"
         echo "[BULL]   Vagrant SSH key copied to '${BULL_VM_USER}'"
     fi
 
@@ -349,6 +352,7 @@ XORGEOF
 mkdir -p /etc/lightdm/lightdm.conf.d
 cat > /usr/local/bin/bull-lightdm-xrandr.sh << 'SCRIPTEOF'
 #!/bin/bash
+sleep 2
 export DISPLAY=:0
 xrandr --output Virtual-1 --mode "${1}x${2}" 2>/dev/null || true
 SCRIPTEOF
@@ -473,7 +477,7 @@ cat > /etc/xdg/autostart/bull-display.desktop << 'DSKEOF'
 [Desktop Entry]
 Type=Application
 Name=BULL Display Setup
-Exec=bash -c 'export DISPLAY=:0; sleep 3; /usr/local/bin/bull-display.sh; sleep 5; /usr/local/bin/bull-display.sh'
+Exec=bash -c 'export DISPLAY=:0; sleep 5; /usr/local/bin/bull-display.sh; sleep 8; /usr/local/bin/bull-display.sh'
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true

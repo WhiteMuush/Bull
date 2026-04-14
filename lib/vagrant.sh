@@ -252,17 +252,19 @@ readonly BULL_DEFAULT_OS="${BULL_OS_KALI}"
 # Parrot Security OS box name depends on provider:
 # - libvirt: custom box built from QCOW2 (bull/parrot-security)
 # - virtualbox: use cloudkats/parrotsec-os from Vagrant Cloud fallback to OVA
+readonly PARROT_VERSION="7.1"
+
 if [[ "${BULL_PROVIDER}" == "libvirt" ]]; then
     readonly PARROT_BOX_NAME="bull/parrot-security"
 else
     readonly PARROT_BOX_NAME="cloudkats/parrotsec-os"
 fi
-readonly PARROT_OVA_URL="https://download.parrot.sh/parrot/iso/7.1/Parrot-security-7.1_amd64.ova"
-readonly PARROT_OVA_URL_ALT="https://download.parrotsec.org/parrot/iso/7.1/Parrot-security-7.1_amd64.ova"
-readonly PARROT_QCOW2_URL="https://download.parrot.sh/parrot/iso/7.1/Parrot-security-7.1_amd64.qcow2"
-readonly PARROT_QCOW2_URL_ALT="https://download.parrotsec.org/parrot/iso/7.1/Parrot-security-7.1_amd64.qcow2"
-readonly PARROT_OVA_FILENAME="Parrot-security-7.1_amd64.ova"
-readonly PARROT_QCOW2_FILENAME="Parrot-security-7.1_amd64.qcow2"
+readonly PARROT_OVA_URL="https://download.parrot.sh/parrot/iso/${PARROT_VERSION}/Parrot-security-${PARROT_VERSION}_amd64.ova"
+readonly PARROT_OVA_URL_ALT="https://download.parrotsec.org/parrot/iso/${PARROT_VERSION}/Parrot-security-${PARROT_VERSION}_amd64.ova"
+readonly PARROT_QCOW2_URL="https://download.parrot.sh/parrot/iso/${PARROT_VERSION}/Parrot-security-${PARROT_VERSION}_amd64.qcow2"
+readonly PARROT_QCOW2_URL_ALT="https://download.parrotsec.org/parrot/iso/${PARROT_VERSION}/Parrot-security-${PARROT_VERSION}_amd64.qcow2"
+readonly PARROT_OVA_FILENAME="Parrot-security-${PARROT_VERSION}_amd64.ova"
+readonly PARROT_QCOW2_FILENAME="Parrot-security-${PARROT_VERSION}_amd64.qcow2"
 
 # Map OS identifier → Vagrant box name
 _os_to_box() {
@@ -327,7 +329,7 @@ ensure_vagrant_box() {
     
     # For Parrot, check the specific qcow2 filename
     if [[ "${os}" == "parrot" ]]; then
-        image_path="${vagrant_home}/boxes/${encoded_name}/0/amd64/libvirt/Parrot-security-7.1-amd64.qcow2"
+        image_path="${vagrant_home}/boxes/${encoded_name}/0/amd64/libvirt/Parrot-security-${PARROT_VERSION}-amd64.qcow2"
         if [[ -f "${image_path}" ]]; then
             image_exists=1
         fi
@@ -544,9 +546,9 @@ _patch_parrot_qcow2() {
     fi
 
     if ! command -v qemu-nbd &>/dev/null; then
-        log_warn "qemu-nbd not found — cannot patch Parrot image for DHCP+SSH."
-        log_warn "The VM may hang at IP assignment. Install qemu-utils and re-run."
-        return 0
+        log_error "qemu-nbd not found — cannot patch Parrot image for DHCP+SSH."
+        log_error "The VM will hang at IP assignment. Install qemu-utils and re-run."
+        return 1
     fi
 
     log_info "Patching Parrot QCOW2: enabling DHCP + SSH on boot..."
@@ -565,12 +567,12 @@ _patch_parrot_qcow2() {
     done
 
     if [[ -z "${nbd_dev}" ]]; then
-        log_warn "Could not connect QCOW2 via NBD — skipping DHCP+SSH patch."
-        return 0
+        log_error "Could not connect QCOW2 via NBD — skipping DHCP+SSH patch."
+        return 1
     fi
 
     # Give the kernel a moment to create partition devices
-    sleep 1
+    sleep 2
 
     local mount_point
     mount_point=$(mktemp -d)
@@ -592,13 +594,13 @@ _patch_parrot_qcow2() {
     if [[ -z "${partition}" ]]; then
         sudo qemu-nbd -d "${nbd_dev}" &>/dev/null
         rmdir "${mount_point}" 2>/dev/null
-        log_warn "Could not mount Parrot root partition — skipping DHCP+SSH patch."
+        log_error "Could not mount Parrot root partition — skipping DHCP+SSH patch."
         {
             echo "=== _patch_parrot_qcow2: mount failed ==="
             lsblk "${nbd_dev}" 2>/dev/null || true
             blkid "${nbd_dev}"* 2>/dev/null || true
         } >> "${BULL_HOME}/bull-error.log" 2>/dev/null || true
-        return 0
+        return 1
     fi
 
     local root_dir="${mount_point}"
@@ -619,8 +621,8 @@ _patch_parrot_qcow2() {
             else
                 sudo qemu-nbd -d "${nbd_dev}" &>/dev/null
                 rmdir "${mount_point}" 2>/dev/null
-                log_warn "Could not mount Parrot btrfs @ subvolume — skipping DHCP+SSH patch."
-                return 0
+                log_error "Could not mount Parrot btrfs @ subvolume — skipping DHCP+SSH patch."
+                return 1
             fi
         fi
     fi
@@ -629,8 +631,8 @@ _patch_parrot_qcow2() {
         sudo umount "${mount_point}" 2>/dev/null
         sudo qemu-nbd -d "${nbd_dev}" &>/dev/null
         rmdir "${mount_point}" 2>/dev/null
-        log_warn "Could not find /etc in Parrot image — skipping DHCP+SSH patch."
-        return 0
+        log_error "Could not find /etc in Parrot image — skipping DHCP+SSH patch."
+        return 1
     fi
 
     sudo mount -o remount,rw "${nbd_dev}${partition}" "${mount_point}" &>/dev/null || true
@@ -697,7 +699,7 @@ DHCP_EOF
 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ== vagrant
 VAGRANTKEY_EOF
     sudo chmod 600 "${vagrant_key_dir}/authorized_keys"
-    sudo chown -R 1000:1000 "${vagrant_key_dir}" 2>/dev/null || true
+    sudo chown -R "$(id -u user 2>/dev/null || echo 1000):$(id -g user 2>/dev/null || echo 1000)" "${vagrant_key_dir}" 2>/dev/null || true
 
     sudo touch "${patched_marker}"
     patched=1
@@ -731,7 +733,7 @@ _ensure_parrot_qcow2() {
     fi
     
     # Check if the qcow2 file actually exists
-    local qcow2_path="${vagrant_home}/boxes/${encoded_name}/${version}/amd64/libvirt/Parrot-security-7.1-amd64.qcow2"
+    local qcow2_path="${vagrant_home}/boxes/${encoded_name}/${version}/amd64/libvirt/Parrot-security-${PARROT_VERSION}-amd64.qcow2"
     if [[ -f "${qcow2_path}" ]]; then
         qcow2_exists=1
     fi
@@ -773,7 +775,7 @@ _ensure_parrot_qcow2() {
     #   ~/.vagrant.d/boxes/<encoded_name>/metadata_url
     # ---------------------------------------------------------------
     local version="0"
-    local disk_name="Parrot-security-7.1-amd64.qcow2"
+    local disk_name="Parrot-security-${PARROT_VERSION}-amd64.qcow2"
     local vagrant_box_dir="${vagrant_home}/boxes/${encoded_name}/${version}/amd64/libvirt"
 
     log_info "Installing Parrot box as '${box_name}'..."
@@ -801,14 +803,18 @@ METADATA_EOF
     # Hard-link or copy. If the image was previously patched (BULL marker),
     # hard-link the patched copy in BULL_HOME instead of the original download.
     local src_qcow2="${qcow2_path}"
-    if [[ -f "${BULL_HOME}/boxes/Parrot-security-7.1-amd64-patched.qcow2" ]]; then
-        src_qcow2="${BULL_HOME}/boxes/Parrot-security-7.1-amd64-patched.qcow2"
+    if [[ -f "${BULL_HOME}/boxes/Parrot-security-${PARROT_VERSION}-amd64-patched.qcow2" ]]; then
+        src_qcow2="${BULL_HOME}/boxes/Parrot-security-${PARROT_VERSION}-amd64-patched.qcow2"
     fi
 
     ln -f "${src_qcow2}" "${vagrant_box_dir}/${disk_name}" 2>/dev/null \
         || cp "${src_qcow2}" "${vagrant_box_dir}/${disk_name}"
 
-    _patch_parrot_qcow2 "${vagrant_box_dir}/${disk_name}"
+    if ! _patch_parrot_qcow2 "${vagrant_box_dir}/${disk_name}"; then
+        log_error "Failed to patch Parrot QCOW2 — VM will not have network/SSH."
+        rm -rf "${vagrant_home}/boxes/${encoded_name}"
+        return 1
+    fi
 
     # Vagrantfile for the box (minimal libvirt settings)
     cat > "${vagrant_box_dir}/Vagrantfile" <<'VAGRANTFILE_EOF'
@@ -987,11 +993,40 @@ _ensure_parrot_ova() {
 _ensure_parrot_box() {
     local box_name="${PARROT_BOX_NAME}"
     local box_dir="${BULL_HOME}/boxes"
+    local vagrant_home="${VAGRANT_HOME:-${HOME}/.vagrant.d}"
+    local encoded_name="${box_name//\//-VAGRANTSLASH-}"
     
-    # Already registered?
+    # Check if box is registered AND if actual image file exists
+    local box_registered=0
+    local image_exists=0
+    
     if "${VAGRANT_CMD}" box list 2>/dev/null | grep -q "${box_name}"; then
-        log_debug "Parrot box '${box_name}' already registered in Vagrant"
+        box_registered=1
+    fi
+    
+    # Verify the actual image file exists for the provider
+    if [[ "${BULL_PROVIDER}" == "libvirt" ]]; then
+        if [[ -f "${vagrant_home}/boxes/${encoded_name}/0/amd64/libvirt/Parrot-security-${PARROT_VERSION}-amd64.qcow2" ]]; then
+            image_exists=1
+        fi
+    else
+        # VirtualBox - check for .box file
+        if [[ -f "${box_dir}/parrot-security.box" ]]; then
+            image_exists=1
+        fi
+    fi
+    
+    # Already registered AND image exists - we're good
+    if [[ "${box_registered}" -eq 1 ]] && [[ "${image_exists}" -eq 1 ]]; then
+        log_debug "Parrot box '${box_name}' already registered with valid image"
         return 0
+    fi
+    
+    # Box registered but image missing - clean up and re-download
+    if [[ "${box_registered}" -eq 1 ]] && [[ "${image_exists}" -eq 0 ]]; then
+        log_warn "Parrot box registered but image file missing - cleaning up"
+        vagrant box remove "${box_name}" --force 2>/dev/null || true
+        rm -rf "${vagrant_home}/boxes/${encoded_name}" 2>/dev/null || true
     fi
 
     # Use QCOW2 for libvirt, OVA for VirtualBox
@@ -1053,11 +1088,14 @@ generate_vagrantfile() {
     local ram="$2"
     local cpu="$3"
     local vm_dir="$4"
-    local username="${5:-kali}"
+    local username="${5:-}"
     local plain_password="${6:-}"   # plain text, only present during initial provision
     local keyboard="${7:-us}"
     local resolution="${8:-1920x1080}"
     local os="${9:-${BULL_DEFAULT_OS}}"
+    
+    # Get default username based on OS if not provided
+    [[ -z "${username}" ]] && username="$(_os_default_user "${os}")"
 
     local template="${SCRIPT_DIR}/configs/Vagrantfile.template"
 
@@ -1073,17 +1111,15 @@ generate_vagrantfile() {
     # in the environment to skip upgrade (faster provisioning).
     local skip_upgrade="${BULL_SKIP_UPGRADE:-0}"
 
-    # Parrot Security OS uses UEFI boot (GPT + EFI System Partition).
-    # Without the OVMF firmware loader, vagrant-libvirt defaults to SeaBIOS
-    # and the VM won't boot.
     local uefi="false"
     local ovmf_loader=""
     local ovmf_vars=""
     if [[ "${os}" == "parrot" ]]; then
-        # Disable UEFI by default due to AppArmor restrictions on Ubuntu Server
-        # that block access to OVMF files. Parrot boots fine with SeaBIOS (BIOS legacy).
-        # Set BULL_FORCE_UEFI=1 to force UEFI if needed.
-        if [[ "${BULL_FORCE_UEFI:-0}" == "1" ]]; then
+        # Parrot Security OS uses UEFI boot (GPT + EFI System Partition).
+        # Without the OVMF firmware loader, vagrant-libvirt defaults to SeaBIOS
+        # and the VM won't boot. Enable UEFI by default.
+        # Set BULL_NO_UEFI=1 to force legacy BIOS if needed.
+        if [[ "${BULL_NO_UEFI:-0}" != "1" ]]; then
             uefi="true"
             ovmf_loader="/usr/share/OVMF/OVMF_CODE_4M.fd"
             if [[ -f "/usr/share/OVMF/OVMF_VARS_4M.fd" ]]; then
@@ -1097,7 +1133,7 @@ generate_vagrantfile() {
                 ovmf_vars="/usr/share/OVMF/OVMF_VARS_4M.fd"
             fi
         else
-            log_info "Using SeaBIOS (BIOS legacy) for Parrot - set BULL_FORCE_UEFI=1 for UEFI"
+            log_info "Using SeaBIOS (BIOS legacy) for Parrot - set BULL_NO_UEFI=0 for UEFI"
         fi
     fi
 
@@ -1149,12 +1185,15 @@ create_vm() {
     local vm_name="$1"
     local ram="${2:-${DEFAULT_RAM}}"
     local cpu="${3:-${DEFAULT_CPU}}"
-    local username="${4:-kali}"
+    local username="${4:-}"
     local plain_password="${5:-}"
     local keyboard="${6:-us}"
     local resolution_override="${7:-}"  # optional: e.g. "2560x1440"
     local os="${8:-${BULL_DEFAULT_OS}}"
     local resolution="${resolution_override:-${DEFAULT_RESOLUTION}}"
+    
+    # Get default username based on OS if not provided
+    [[ -z "${username}" ]] && username="$(_os_default_user "${os}")"
 
     # Ensure all required tools are available (offer install if missing)
     ensure_dependencies || return 1
