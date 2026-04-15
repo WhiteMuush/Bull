@@ -56,6 +56,29 @@ Following dependencies may be installed:
 - **Hypervisor**: VirtualBox (`~/VirtualBox VMs/`) or libvirt (`/var/lib/libvirt/images/`)
 - **BULL data**: `~/.bull/` (inventory, credentials, GPG keys, toolkit registry)
 
+### ⚠️ WSL2 — Disk space reclamation
+
+WSL2 stores its entire Linux filesystem in a `.vhdx` file that **grows automatically but never shrinks on its own**. After destroying VMs, the disk space is freed inside WSL2 but Windows still sees the `.vhdx` at its peak size.
+
+To reclaim the space on the Windows side:
+
+```powershell
+# 1. Shut down WSL2
+wsl --shutdown
+
+# 2. Compact the virtual disk (run as Administrator in PowerShell)
+$vhdx = (Get-ChildItem "$env:LOCALAPPDATA\Packages\*\LocalState\ext4.vhdx" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+Optimize-VHD -Path $vhdx -Mode Full
+```
+
+> If `Optimize-VHD` is not available (requires Hyper-V), use `diskpart` instead:
+> ```
+> diskpart
+> select vdisk file="C:\Users\<you>\AppData\Local\Packages\<distro>\LocalState\ext4.vhdx"
+> compact vdisk
+> exit
+> ```
+
 ## Security
 
 - Scripts require root with 700 permissions
