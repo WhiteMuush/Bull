@@ -230,7 +230,10 @@ _libvirt_ssh() {
 
         read -rs -p "Password for ${ssh_user}@${ip}: " user_pass
         echo
-        sshpass -p "${user_pass}" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${ssh_user}@${ip}"
+        # Use SSHPASS env var + sshpass -e instead of -p to keep the password
+        # out of the process list (ps aux / /proc/*/cmdline).
+        SSHPASS="${user_pass}" sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${ssh_user}@${ip}"
+        user_pass=""
     else
         ssh -i "${key}" \
             -o StrictHostKeyChecking=no \
@@ -1165,6 +1168,9 @@ generate_vagrantfile() {
         log_error "Failed to generate Vagrantfile from template"
         return 1
     }
+    # Restrict Vagrantfile: it contains the plain-text password until
+    # post-provisioning sanitization. Only root (the BULL process) needs it.
+    chmod 600 "${vm_dir}/Vagrantfile"
 
     log_debug "Generated Vagrantfile for '${vm_name}'"
     return 0
@@ -1231,8 +1237,10 @@ create_vm() {
     local vm_dir
     vm_dir="$(get_vm_dir "${vm_name}")"
 
-    # Create VM directory
+    # Create VM directory — restricted to root only: Vagrantfile contains
+    # the plain-text password during provisioning; no other user should read it.
     mkdir -p "${vm_dir}"
+    chmod 700 "${vm_dir}"
     log_debug "Created VM directory: ${vm_dir}"
 
     # Generate Vagrantfile and copy provisioning script

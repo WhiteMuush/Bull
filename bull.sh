@@ -684,8 +684,14 @@ _prompt_credentials() {
 
     local _default_user
     _default_user="$(_os_default_user "${BULL_OS:-kali}")"
-    read -rp "$(echo -e "  ${BRIGHT_CYAN}Username (${_default_user}) > ${RESET}")" BULL_CRED_USER
-    BULL_CRED_USER="${BULL_CRED_USER:-${_default_user}}"
+    while true; do
+        read -rp "$(echo -e "  ${BRIGHT_CYAN}Username (${_default_user}) > ${RESET}")" BULL_CRED_USER
+        BULL_CRED_USER="${BULL_CRED_USER:-${_default_user}}"
+        if [[ "${BULL_CRED_USER}" =~ ^[a-zA-Z][a-zA-Z0-9_-]{0,31}$ ]]; then
+            break
+        fi
+        echo -e "  ${BRIGHT_RED}Invalid username.${RESET} Use letters, digits, hyphens, underscores (max 32 chars)."
+    done
     echo ""
 
     echo -e "  ${BRIGHT_RED}[G]${RESET} Generate a random strong password ${DIM}(recommended)${RESET}"

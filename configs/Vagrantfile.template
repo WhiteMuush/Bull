@@ -71,8 +71,6 @@ config.vm.provider "libvirt" do |lv|
     lv.video_type        = "qxl"
     lv.video_vram        = 65536
     lv.storage_pool_name = "default"
-    # Disable AppArmor for this VM (required on Ubuntu Server)
-    lv.apparmor = false
 # Parrot Security OS uses UEFI boot (GPT + EFI System Partition).
   # Without this, vagrant-libvirt defaults to SeaBIOS and the VM won't boot.
   if %%UEFI%%

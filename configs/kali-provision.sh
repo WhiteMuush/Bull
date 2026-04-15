@@ -308,12 +308,6 @@ if _is_virtualbox; then
     nohup sudo bash -c 'apt-get install -y -qq virtualbox-guest-x11 virtualbox-guest-utils' > /dev/null 2>&1 &
 
     mkdir -p /etc/xdg/autostart
-
-elif _is_kvm; then
-    echo "[BULL]   Hypervisor: KVM/libvirt — installing spice-vdagent..."
-    nohup sudo bash -c 'apt-get install -y -qq spice-vdagent xserver-xorg-video-qxl xdotool' > /dev/null 2>&1 &
-    systemctl enable spice-vdagentd 2>/dev/null || true
-    systemctl start spice-vdagentd 2>/dev/null || true
     cat > /etc/xdg/autostart/vboxclient.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
