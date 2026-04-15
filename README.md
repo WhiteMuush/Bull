@@ -74,3 +74,8 @@ Following dependencies may be installed:
 sudo ./bull.sh help      # Run as root
 bull help                # After init
 ```
+
+
+## Licence
+
+[**MIT**](https://github.com/WhiteMuush/Medusa/blob/master/LICENSE)
