@@ -1,4 +1,4 @@
-# BULL : Your Pentest VM Toolkit
+# Your Pentest VM Toolkit
 
 Launch a fully-equipped pentest VM in seconds with pre-installed security tools, VPN protection, and encrypted storage.
 
