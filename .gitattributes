@@ -1,0 +1,6 @@
+# Force LF line endings for all shell scripts — CRLF breaks bash (set -o pipefail)
+*.sh    text eol=lf
+*.conf  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.rb    text eol=lf
