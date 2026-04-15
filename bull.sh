@@ -1178,11 +1178,8 @@ handle_menu_choice() {
                     fi
                     ;;
                 0|"")
-                    clear
-                    echo -e "\n${CYAN}Thanks for using BULL!${RESET}"
-                    echo -e "${RED}See you soon! <3${RESET}\n"
-                    echo -e "Creator: ${CREATOR_LINK}"
-                    return
+                    _show_goodbye
+                    exit 0
                     ;;
                 *)
                     echo -e "  ${BRIGHT_RED}Choice invalid.${RESET}"
@@ -1223,10 +1220,7 @@ handle_menu_choice() {
             log_info "BULL ready. Run 'bull' or 'source ~/.bashrc' to use."
             ;;
         0)
-            clear
-            echo -e "\n${CYAN}Thanks for using BULL!${RESET}"
-            echo -e "${RED}See you soon! <3${RESET}\n"
-            echo -e "Creator: ${CREATOR_LINK}"
+            _show_goodbye
             exit 0
             ;;
         *)
@@ -1629,6 +1623,24 @@ _tui_render() {
     printf '\n'
     printf '\033[?25h'   # show cursor at prompt position only
     printf "  %s%sBULL > %s" "${BOLD}" "${BRIGHT_CYAN}" "${RESET}"
+}
+
+# =============================================================================
+# GOODBYE
+# Clears the EXIT trap FIRST so _tui_restore doesn't fire after the message
+# and re-enter/toggle the alternate screen buffer, wiping the output.
+# =============================================================================
+_show_goodbye() {
+    trap - EXIT INT TERM HUP       # désactive tous les traps avant de quitter
+    printf '\033[?1049l'           # quitte le buffer alternatif
+    printf '\033[?25h'             # affiche le curseur
+    printf '\033[0m'               # reset couleurs
+    stty sane 2>/dev/null || true  # restaure le terminal
+    clear
+    echo -e "\n${CYAN}Thanks for using BULL!${RESET}"
+    echo -e "${RED}See you soon! <3${RESET}\n"
+    echo -e "Creator: ${CREATOR_LINK}"
+    echo ""
 }
 
 # =============================================================================
