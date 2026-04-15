@@ -78,4 +78,4 @@ bull help                # After init
 
 ## Licence
 
-[**MIT**](https://github.com/WhiteMuush/Medusa/blob/master/LICENSE)
+[**MIT**](https://github.com/WhiteMuush/Bull/blob/master/LICENSE)
