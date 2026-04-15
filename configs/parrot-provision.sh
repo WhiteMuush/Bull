@@ -157,18 +157,16 @@ sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd
 systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# LightDM Auto-login
-# Skip the greeter entirely so MATE loads directly with the correct keyboard
-# layout and resolution from first boot.
+# LightDM Greeter — require login, pre-select the BULL user in the list
 # ---------------------------------------------------------------------------
 if [[ -n "${BULL_VM_USER}" ]]; then
-    echo "[BULL] Configuring LightDM auto-login for '${BULL_VM_USER}'..."
+    echo "[BULL] Configuring LightDM greeter for '${BULL_VM_USER}'..."
     mkdir -p /etc/lightdm/lightdm.conf.d
-    cat > /etc/lightdm/lightdm.conf.d/10-bull-autologin.conf << AUTOLOGEOF
+    cat > /etc/lightdm/lightdm.conf.d/10-bull-greeter.conf << GREETEREOF
 [Seat:*]
-autologin-user=${BULL_VM_USER}
-autologin-user-timeout=0
-AUTOLOGEOF
+greeter-hide-users=false
+greeter-show-manual-login=false
+GREETEREOF
 fi
 
 # ---------------------------------------------------------------------------
@@ -396,7 +394,7 @@ cat > /usr/local/bin/bull-set-resolution.sh << 'SETRESEOF'
 #!/bin/bash
 W="${1:-1920}"
 H="${2:-1080}"
-# Find the user owning the MATE session (the LightDM autologin user)
+# Find the user owning the MATE session
 XUSER=$(ps -eo user,comm --no-headers | awk '/mate-session/{print $1; exit}')
 # Fallback: try any X session owner
 [ -z "${XUSER}" ] && XUSER=$(ps -eo user,comm --no-headers | awk '/xfce4-session|gnome-session/{print $1; exit}')
