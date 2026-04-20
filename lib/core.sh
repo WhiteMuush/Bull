@@ -12,7 +12,7 @@ readonly _BULL_CORE_LOADED=1
 # Constants
 # ---------------------------------------------------------------------------
 # shellcheck disable=SC2034
-readonly BULL_VERSION="0.1.0"
+readonly BULL_VERSION="1.0.0"
 readonly BULL_MIN_BASH_VERSION=4
 # shellcheck disable=SC2034
 readonly DEFAULT_RAM=4096
@@ -422,7 +422,6 @@ validate_vm_name() {
     return 0
 }
 
-# Validate a positive integer
 validate_positive_int() {
     local value="$1"
     local label="$2"
@@ -435,7 +434,6 @@ validate_positive_int() {
     return 0
 }
 
-# Ensure a required argument is non-empty
 require_argument() {
     local value="$1"
     local name="$2"
@@ -475,7 +473,6 @@ confirm_action() {
 # Package manager detection & auto-install
 # ---------------------------------------------------------------------------
 
-# Detect the system package manager
 detect_pkg_manager() {
     if [[ "$(uname)" == "Darwin" ]]; then
         if command -v brew &>/dev/null; then
@@ -625,7 +622,6 @@ try_install_package() {
         return 1
     fi
 
-    # Verify it's now available
     if ! command -v "${cmd_name}" &>/dev/null; then
         log_error "'${cmd_name}' still not found after install."
         return 1
@@ -639,7 +635,6 @@ try_install_package() {
 # Dependency checking (with auto-install offer)
 # ---------------------------------------------------------------------------
 
-# Check if a command exists; if not, offer to install it
 check_command() {
     local cmd="$1"
     local install_hint="${2:-}"
@@ -1388,7 +1383,6 @@ check_bash_version() {
 # Utility functions
 # ---------------------------------------------------------------------------
 
-# Get the BULL home directory, creating it if needed
 get_bull_dir() {
     if [[ ! -d "${BULL_HOME}" ]]; then
         mkdir -p "${BULL_HOME}"
@@ -1397,7 +1391,6 @@ get_bull_dir() {
     echo "${BULL_HOME}"
 }
 
-# Get VM directory path
 get_vm_dir() {
     local vm_name="$1"
     echo "${BULL_VM_DIR}/${vm_name}"
@@ -1433,12 +1426,10 @@ check_disk_space() {
     return 0
 }
 
-# ISO 8601 timestamp
 timestamp_iso() {
     date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
-# Detect OS with distribution info
 detect_os() {
     local uname_out
     uname_out="$(uname -s)"

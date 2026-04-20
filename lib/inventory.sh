@@ -7,14 +7,12 @@
 [[ -n "${_BULL_INVENTORY_LOADED:-}" ]] && return 0
 readonly _BULL_INVENTORY_LOADED=1
 
-# Inventory file location (relative to project root)
 INVENTORY_FILE="${SCRIPT_DIR}/data/inventory.json"
 
 # ---------------------------------------------------------------------------
 # Initialization
 # ---------------------------------------------------------------------------
 
-# Create inventory file if missing
 inventory_init() {
     local data_dir
     data_dir="$(dirname "${INVENTORY_FILE}")"
@@ -42,7 +40,6 @@ inventory_init() {
 # CRUD operations
 # ---------------------------------------------------------------------------
 
-# Add a new VM to the inventory
 inventory_add() {
     local name="$1"
     local ram="$2"
@@ -100,7 +97,6 @@ inventory_add() {
     return 0
 }
 
-# Remove a VM from the inventory
 inventory_remove() {
     local name="$1"
 
@@ -130,7 +126,6 @@ inventory_remove() {
     return 0
 }
 
-# Update a field on a VM entry
 inventory_update() {
     local name="$1"
     local field="$2"
@@ -180,7 +175,6 @@ inventory_update() {
     return 0
 }
 
-# Get a VM entry as JSON
 inventory_get() {
     local name="$1"
 
@@ -199,7 +193,6 @@ inventory_get() {
     return 0
 }
 
-# Check if a VM exists in inventory
 inventory_vm_exists() {
     local name="$1"
 
@@ -217,7 +210,6 @@ inventory_vm_exists() {
 # Display
 # ---------------------------------------------------------------------------
 
-# List all VMs in a formatted table
 inventory_list() {
     inventory_init || return 1
 
@@ -267,7 +259,6 @@ inventory_list() {
 # Snapshot management
 # ---------------------------------------------------------------------------
 
-# Add snapshot name to VM's snapshot list
 inventory_add_snapshot() {
     local name="$1"
     local snapshot_name="$2"
@@ -301,7 +292,6 @@ inventory_add_snapshot() {
     return 0
 }
 
-# Remove a snapshot entry from a VM's snapshot list
 inventory_remove_snapshot() {
     local name="$1"
     local snapshot_name="$2"
@@ -336,7 +326,6 @@ inventory_remove_snapshot() {
     return 0
 }
 
-# List snapshots for a VM
 inventory_list_snapshots() {
     local name="$1"
 
@@ -357,7 +346,6 @@ inventory_list_snapshots() {
 # Sync
 # ---------------------------------------------------------------------------
 
-# Sync inventory status with actual Vagrant state for all VMs
 inventory_sync() {
     inventory_init || return 1
 

@@ -14,7 +14,6 @@ readonly TOOLKITS_REGISTRY="${BULL_HOME}/toolkits.json"
 # Registry helpers
 # ---------------------------------------------------------------------------
 
-# Ensure the registry file exists with an empty structure
 _toolkit_registry_init() {
     if [[ ! -f "${TOOLKITS_REGISTRY}" ]]; then
         mkdir -p "$(dirname "${TOOLKITS_REGISTRY}")"
@@ -49,7 +48,6 @@ toolkit_save() {
     log_success "Toolkit '${name}' saved to registry"
 }
 
-# Remove a toolkit from the registry by name
 toolkit_remove_from_registry() {
     local name="$1"
 
@@ -288,7 +286,6 @@ toolkit_rename() {
     log_success "Toolkit renamed: '${old_name}' → '${new_name}'"
 }
 
-# Run git pull on an installed toolkit inside a running VM
 toolkit_pull() {
     local vm_name="$1"
     local toolkit_name="$2"
@@ -331,9 +328,6 @@ toolkit_pull() {
     fi
 }
 
-# ---------------------------------------------------------------------------
-# List installed toolkits on a running VM
-# ---------------------------------------------------------------------------
 list_toolkits() {
     local vm_name="$1"
 

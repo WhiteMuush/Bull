@@ -11,7 +11,6 @@ readonly _BULL_VPN_LOADED=1
 # VPN Type Detection
 # ---------------------------------------------------------------------------
 
-# Detect whether a config file is OpenVPN or WireGuard
 detect_vpn_type() {
     local config_file="$1"
 
@@ -53,7 +52,6 @@ detect_vpn_type() {
 # VPN Configuration
 # ---------------------------------------------------------------------------
 
-# Configure VPN on a VM with kill switch
 configure_vpn() {
     local vm_name="$1"
     local config_file="$2"
@@ -337,7 +335,6 @@ PROVISION_EOF
 # VPN Verification
 # ---------------------------------------------------------------------------
 
-# Check if VM traffic is going through VPN
 verify_vpn() {
     local vm_name="$1"
 

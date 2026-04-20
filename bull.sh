@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # BULL - Automated Pentest Environment Provisioning Toolkit
-# Version: 0.1.0
+# Version: 1.0.0
 #
 # Creates, manages, and configures pentest VMs (Kali/Parrot) via Vagrant
 # with VPN kill switch, snapshot management, and inventory tracking.
@@ -986,7 +986,6 @@ handle_menu_choice() {
             local vm_name
             vm_name=$(select_vm_from_list "Select VM (snapshot)") || return
 
-            # Sub-menu: create or delete
             echo -e ""
             echo -e "${BRIGHT_CYAN}  ┌──────────────────────────────────────────────────────┐${RESET}"
             echo -e "${BRIGHT_CYAN}  │                                                      │${RESET}"
@@ -1043,7 +1042,6 @@ handle_menu_choice() {
             configure_vpn "${vm_name}" "${vpn_config}" || true
             ;;
         11)
-            # ── Toolkit Manager ───────────────────────────────────────────
             clear
             list_toolkit_registry > /dev/null 2>&1 || true
             _display_toolkit_manager
