@@ -1129,15 +1129,15 @@ handle_menu_choice() {
                             ;;
                         2)
                             local new_url
-                            read -rp "$(echo -e "  ${BRIGHT_CYAN}Nouvelle URL > ${RESET}")" new_url
+                            read -rp "$(echo -e "  ${BRIGHT_CYAN}New URL > ${RESET}")" new_url
                             [[ -z "${new_url}" ]] && { echo -e "  ${BRIGHT_RED}URL required.${RESET}"; return; }
                             toolkit_save "${sel_name}" "${new_url}" && \
                                 echo -e "\n  ${BRIGHT_CYAN}URL updated.${RESET}"
                             ;;
                         3)
                             local new_name
-                            read -rp "$(echo -e "  ${BRIGHT_CYAN}Nouveau nom > ${RESET}")" new_name
-                            [[ -z "${new_name}" ]] && { echo -e "  ${BRIGHT_RED}Nom requis.${RESET}"; return; }
+                            read -rp "$(echo -e "  ${BRIGHT_CYAN}New name > ${RESET}")" new_name
+                            [[ -z "${new_name}" ]] && { echo -e "  ${BRIGHT_RED}Name required.${RESET}"; return; }
                             toolkit_rename "${sel_name}" "${new_name}" && \
                                 echo -e "\n  ${BRIGHT_CYAN}Renamed to '${new_name}'.${RESET}"
                             ;;

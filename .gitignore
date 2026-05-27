@@ -58,6 +58,5 @@ shellcheck-report.*
 # WSL shim binaries
 .shim/
 
-# Project documentation
-docs/
-!docs/.gitkeep
+# Claude Code internal files
+CLAUDE.md

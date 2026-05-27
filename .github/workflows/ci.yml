@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ludeeus/action-shellcheck@master
+        env:
+          SHELLCHECK_OPTS: -e SC1091 -e SC2034
+        with:
+          severity: warning
+
+  syntax:
+    name: Bash syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check syntax of all .sh files
+        run: |
+          failed=0
+          while IFS= read -r f; do
+            if ! bash -n "$f" 2>&1; then
+              echo "FAIL: $f"
+              failed=1
+            fi
+          done < <(find . -name '*.sh' -type f)
+          exit $failed
+
+  smoke-test:
+    name: Smoke test (source chain)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify all lib files source correctly
+        run: |
+          export SCRIPT_DIR="$PWD"
+          # Source core first, then each lib — must not error
+          source lib/core.sh
+          source lib/inventory.sh
+          source lib/vagrant.sh
+          source lib/vpn.sh
+          source lib/toolkits.sh
+
+          # Verify key functions exist
+          for fn in log_info log_error validate_vm_name \
+                    inventory_init inventory_add \
+                    create_vm start_vm stop_vm \
+                    configure_vpn detect_vpn_type \
+                    install_toolkit toolkit_save; do
+            if ! declare -F "$fn" > /dev/null; then
+              echo "MISSING: $fn"
+              exit 1
+            fi
+          done
+          echo "All expected functions found."

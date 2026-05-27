@@ -1,4 +1,8 @@
-# Your Pentest VM Toolkit
+# Bull
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/WhiteMuush/Bull/actions/workflows/ci.yml/badge.svg)](https://github.com/WhiteMuush/Bull/actions/workflows/ci.yml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 Launch a fully-equipped pentest VM in seconds with pre-installed security tools, VPN protection, and encrypted storage.
 
@@ -96,11 +100,41 @@ Optimize-VHD -Path $vhdx -Mode Full
 ## Commands
 
 ```bash
-sudo ./bull.sh help      # Run as root
-bull help                # After init
+sudo ./bull.sh           # Interactive TUI menu
+sudo ./bull.sh help      # CLI help
+sudo ./bull.sh create my-vm --os kali --ram 4096 --cpu 2
+sudo ./bull.sh start my-vm
+sudo ./bull.sh connect my-vm
+sudo ./bull.sh snapshot my-vm pre-exploit
+sudo ./bull.sh vpn my-vm ~/vpn/config.ovpn
+sudo ./bull.sh destroy my-vm
 ```
 
+After running `bull init`, you can use the `bull` alias directly.
 
-## Licence
+## Project Layout
 
-[**MIT**](https://github.com/WhiteMuush/Bull/blob/master/LICENSE)
+```
+bull.sh              Entry point (TUI + CLI)
+lib/
+  core.sh            Colors, logging, dependency checks, GPG encryption
+  inventory.sh       VM inventory CRUD (JSON via jq)
+  vagrant.sh         Vagrant/libvirt VM lifecycle
+  vpn.sh             VPN configuration + kill switch
+  toolkits.sh        Security toolkit installation + registry
+configs/
+  Vagrantfile.template
+  kali-provision.sh
+  parrot-provision.sh
+docs/
+  ARCHITECTURE.md    Internal design documentation
+  ADDING_A_TOOL.md   How to add tools to the toolkit manager
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and PR checklist.
+
+## License
+
+[MIT](LICENSE)
