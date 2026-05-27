@@ -1,0 +1,564 @@
+---
+- name: BULL Parrot Security OS Provisioning
+  hosts: all
+  become: true
+  vars:
+    bull_skip_upgrade: true
+    bull_vm_user: ""
+    bull_vm_pass: ""
+    bull_vm_keyboard: "us"
+    bull_vm_resolution: "1920x1080"
+    toolkit_urls: []
+    extra_packages: []
+
+    essential_packages:
+      - git
+      - curl
+      - wget
+      - vim
+      - tmux
+      - htop
+      - net-tools
+      - dnsutils
+      - jq
+      - tree
+      - unzip
+
+    security_packages:
+      - nmap
+      - gobuster
+      - sqlmap
+      - nikto
+      - dirb
+      - enum4linux
+      - smbclient
+
+    vpn_packages:
+      - openvpn
+      - wireguard
+      - iptables-persistent
+
+  tasks:
+    - name: Wait for network DNS resolution
+      command: getent hosts parrotsec.org
+      register: dns_check
+      retries: 6
+      delay: 5
+      until: dns_check.rc == 0
+      failed_when: false
+      changed_when: false
+
+    - name: Set network_available fact
+      set_fact:
+        network_available: "{{ dns_check.rc == 0 }}"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: network_available | bool
+
+    - name: Full system upgrade
+      ansible.builtin.apt:
+        upgrade: full
+      when:
+        - not (bull_skip_upgrade | bool)
+        - network_available | bool
+
+    - name: Install essential packages
+      ansible.builtin.apt:
+        name: "{{ essential_packages }}"
+        state: present
+      when: network_available | bool
+
+    - name: Install security tools
+      ansible.builtin.apt:
+        name: "{{ security_packages }}"
+        state: present
+      when: network_available | bool
+
+    - name: Install VPN packages
+      ansible.builtin.apt:
+        name: "{{ vpn_packages }}"
+        state: present
+      when: network_available | bool
+
+    - name: Create user
+      ansible.builtin.user:
+        name: "{{ bull_vm_user }}"
+        shell: /bin/bash
+        groups: sudo
+        append: true
+      when: bull_vm_user | length > 0
+
+    - name: Set user password
+      ansible.builtin.shell: |
+        echo '{{ bull_vm_user }}:{{ bull_vm_pass }}' | chpasswd
+      no_log: true
+      when:
+        - bull_vm_user | length > 0
+        - bull_vm_pass | length > 0
+      changed_when: true
+
+    - name: Grant passwordless sudo to user
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/bull-{{ bull_vm_user }}"
+        content: "{{ bull_vm_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        mode: "0440"
+        owner: root
+        group: root
+      when: bull_vm_user | length > 0
+
+    - name: Copy Vagrant SSH key to custom user
+      ansible.builtin.copy:
+        src: /home/vagrant/.ssh/authorized_keys
+        dest: "/home/{{ bull_vm_user }}/.ssh/authorized_keys"
+        owner: "{{ bull_vm_user }}"
+        group: "{{ bull_vm_user }}"
+        mode: "0600"
+        remote_src: true
+      when: bull_vm_user | length > 0
+
+    - name: Ensure .ssh directory exists for custom user
+      ansible.builtin.file:
+        path: "/home/{{ bull_vm_user }}/.ssh"
+        state: directory
+        owner: "{{ bull_vm_user }}"
+        group: "{{ bull_vm_user }}"
+        mode: "0700"
+      when: bull_vm_user | length > 0
+
+    - name: Lock default 'user' account
+      ansible.builtin.command: passwd -l user
+      when:
+        - bull_vm_user | length > 0
+        - bull_vm_user != "user"
+      changed_when: true
+
+    - name: Create pentest directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - /opt/pentest/scans
+        - /opt/pentest/loot
+        - /opt/pentest/notes
+        - /opt/pentest/exploits
+        - /opt/toolkits
+        - /root/.ssh
+
+    - name: Set toolkits directory ownership
+      ansible.builtin.file:
+        path: /opt/toolkits
+        owner: "{{ bull_vm_user }}"
+        group: "{{ bull_vm_user }}"
+      when: bull_vm_user | length > 0
+
+    - name: Configure SSH - PermitRootLogin
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitRootLogin"
+        line: "PermitRootLogin yes"
+      notify: Restart SSH
+
+    - name: Configure SSH - PubkeyAuthentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PubkeyAuthentication"
+        line: "PubkeyAuthentication yes"
+      notify: Restart SSH
+
+    - name: Configure SSH - PasswordAuthentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PasswordAuthentication"
+        line: "PasswordAuthentication yes"
+      notify: Restart SSH
+
+    - name: Configure LightDM auto-login
+      ansible.builtin.copy:
+        dest: /etc/lightdm/lightdm.conf.d/10-bull-autologin.conf
+        content: |
+          [Seat:*]
+          autologin-user={{ bull_vm_user }}
+          autologin-user-timeout=0
+        mode: "0644"
+      when: bull_vm_user | length > 0
+
+    - name: Set timezone to UTC
+      community.general.timezone:
+        name: UTC
+
+    - name: Write /etc/default/keyboard
+      ansible.builtin.copy:
+        dest: /etc/default/keyboard
+        content: |
+          XKBMODEL="pc105"
+          XKBLAYOUT="{{ bull_vm_keyboard }}"
+          XKBVARIANT=""
+          XKBOPTIONS=""
+          BACKSPACE="guess"
+        mode: "0644"
+
+    - name: Debconf preseed keyboard layout
+      ansible.builtin.shell: |
+        debconf-set-selections <<EOF
+        keyboard-configuration keyboard-configuration/layoutcode string {{ bull_vm_keyboard }}
+        keyboard-configuration keyboard-configuration/modelcode string pc105
+        keyboard-configuration keyboard-configuration/variantcode string
+        keyboard-configuration keyboard-configuration/optionscode string
+        keyboard-configuration keyboard-configuration/compose select No compose key
+        keyboard-configuration keyboard-configuration/ctrl_alt_bksp boolean false
+        keyboard-configuration keyboard-configuration/toggle select No toggling
+        keyboard-configuration keyboard-configuration/switch select No temporary switch
+        keyboard-configuration keyboard-configuration/altgr select The default for the keyboard layout
+        keyboard-configuration keyboard-configuration/unsupported_layout boolean true
+        EOF
+      changed_when: true
+
+    - name: Reconfigure keyboard
+      ansible.builtin.shell: |
+        DEBIAN_FRONTEND=noninteractive dpkg-reconfigure keyboard-configuration 2>/dev/null || true
+        setupcon --force 2>/dev/null || true
+        udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
+      changed_when: true
+
+    - name: Write X11 keyboard config
+      ansible.builtin.copy:
+        dest: /etc/X11/xorg.conf.d/00-keyboard.conf
+        content: |
+          Section "InputClass"
+              Identifier "system-keyboard"
+              MatchIsKeyboard "on"
+              Option "XkbLayout" "{{ bull_vm_keyboard }}"
+              Option "XkbModel"  "pc105"
+          EndSection
+        mode: "0644"
+
+    - name: Write /etc/xprofile keyboard layout
+      ansible.builtin.blockinfile:
+        path: /etc/xprofile
+        create: true
+        marker: "# {mark} bull-keyboard"
+        block: |
+          if command -v setxkbmap >/dev/null 2>&1; then
+              setxkbmap -layout {{ bull_vm_keyboard }} -model pc105 2>/dev/null || true
+          fi
+
+    - name: Write MATE dconf keyboard settings
+      ansible.builtin.shell: |
+        home_dir=$(getent passwd "{{ bull_vm_user }}" | cut -d: -f6 2>/dev/null) || exit 0
+        [ -d "${home_dir}" ] || exit 0
+        dconf_dir="${home_dir}/.config/dconf"
+        mkdir -p "${dconf_dir}"
+        sudo -u "{{ bull_vm_user }}" dbus-launch gsettings set org.mate.peripherals-keyboard-xkb.kbd layouts "['{{ bull_vm_keyboard }}']" 2>/dev/null || true
+        sudo -u "{{ bull_vm_user }}" dbus-launch gsettings set org.mate.peripherals-keyboard-xkb.kbd model "'pc105'" 2>/dev/null || true
+        chown -R "{{ bull_vm_user }}:{{ bull_vm_user }}" "${dconf_dir}" 2>/dev/null || true
+      when: bull_vm_user | length > 0
+      changed_when: true
+
+    - name: Write keyboard autostart desktop entry
+      ansible.builtin.copy:
+        dest: /etc/xdg/autostart/bull-keyboard.desktop
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name=BULL Keyboard Layout
+          Comment=Force keyboard layout after desktop loads
+          Exec=bash -c 'sleep 5 && DISPLAY=:0 setxkbmap -layout {{ bull_vm_keyboard }} -model pc105'
+          Hidden=false
+          NoDisplay=false
+          X-GNOME-Autostart-enabled=true
+          X-MATE-Autostart-enabled=true
+        mode: "0644"
+
+    - name: Set localectl X11 keymap
+      ansible.builtin.command: localectl set-x11-keymap {{ bull_vm_keyboard }} pc105 "" ""
+      failed_when: false
+      changed_when: true
+
+    - name: Detect VirtualBox hypervisor
+      ansible.builtin.shell: |
+        lsmod 2>/dev/null | grep -q vboxguest || \
+        grep -qi virtualbox /sys/devices/virtual/dmi/id/product_name 2>/dev/null
+      register: hypervisor_check
+      failed_when: false
+      changed_when: false
+
+    - name: Detect KVM hypervisor
+      ansible.builtin.shell: |
+        grep -qi kvm /sys/devices/virtual/dmi/id/sys_vendor 2>/dev/null || \
+        grep -q 'QEMU' /sys/devices/virtual/dmi/id/sys_vendor 2>/dev/null
+      register: kvm_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install VirtualBox Guest Additions
+      ansible.builtin.apt:
+        name:
+          - virtualbox-guest-x11
+          - virtualbox-guest-utils
+        state: present
+      when:
+        - network_available | bool
+        - hypervisor_check.rc == 0
+
+    - name: Write VBoxClient autostart
+      ansible.builtin.copy:
+        dest: /etc/xdg/autostart/vboxclient.desktop
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name=VirtualBox Guest Additions
+          Exec=/usr/bin/VBoxClient-all
+          Hidden=false
+          NoDisplay=false
+          X-GNOME-Autostart-enabled=true
+          X-MATE-Autostart-enabled=true
+        mode: "0644"
+      when: hypervisor_check.rc == 0
+
+    - name: Install SPICE vdagent
+      ansible.builtin.apt:
+        name:
+          - spice-vdagent
+          - xserver-xorg-video-qxl
+          - xdotool
+        state: present
+      when:
+        - network_available | bool
+        - kvm_check.rc == 0
+
+    - name: Enable spice-vdagentd
+      ansible.builtin.systemd:
+        name: spice-vdagentd
+        enabled: true
+        state: started
+      when: kvm_check.rc == 0
+      failed_when: false
+
+    - name: Write SPICE cursor fix autostart
+      ansible.builtin.copy:
+        dest: /etc/xdg/autostart/bull-spice-cursor.desktop
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name=BULL SPICE Cursor Fix
+          Comment=Start spice-vdagent and sync cursor to eliminate double-cursor offset
+          Exec=bash -c 'spice-vdagent 2>/dev/null; sleep 2; xdotool mousemove_relative -- 1 0; xdotool mousemove_relative -- -1 0'
+          Hidden=false
+          NoDisplay=false
+          X-GNOME-Autostart-enabled=true
+          X-MATE-Autostart-enabled=true
+          X-GNOME-Autostart-Phase=Initialization
+        mode: "0644"
+      when: kvm_check.rc == 0
+
+    - name: Parse resolution
+      set_fact:
+        xres_w: "{{ bull_vm_resolution.split('x')[0] }}"
+        xres_h: "{{ bull_vm_resolution.split('x')[1] }}"
+
+    - name: Generate xorg display config
+      ansible.builtin.shell: |
+        MODE_MODELINE=$(cvt {{ xres_w }} {{ xres_h }} 60 2>/dev/null | grep "^Modeline" | head -1)
+        cat > /etc/X11/xorg.conf.d/10-bull-display.conf <<XORGEOF
+        Section "Monitor"
+            Identifier  "Virtual-1"
+            ModelName   "BULL Preferred"
+            ${MODE_MODELINE}
+            Option      "PreferredMode" "{{ xres_w }}x{{ xres_h }}"
+        EndSection
+
+        Section "Screen"
+            Identifier "Screen0"
+            DefaultDepth 24
+            SubSection "Display"
+                Depth    24
+                Modes    "{{ xres_w }}x{{ xres_h }}"
+            EndSubSection
+        EndSection
+        XORGEOF
+      changed_when: true
+
+    - name: Create LightDM xrandr helper script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/bull-lightdm-xrandr.sh
+        content: |
+          #!/bin/bash
+          export DISPLAY=:0
+          xrandr --output Virtual-1 --mode "${1}x${2}" 2>/dev/null || true
+        mode: "0755"
+
+    - name: Configure LightDM display resolution
+      ansible.builtin.copy:
+        dest: /etc/lightdm/lightdm.conf.d/20-bull-display.conf
+        content: |
+          [Seat:*]
+          display-setup-script=/usr/local/bin/bull-lightdm-xrandr.sh {{ xres_w }} {{ xres_h }}
+          session-setup-script=/usr/local/bin/bull-lightdm-xrandr.sh {{ xres_w }} {{ xres_h }}
+        mode: "0644"
+
+    - name: Deploy bull-display.sh
+      ansible.builtin.copy:
+        dest: /usr/local/bin/bull-display.sh
+        content: |
+          #!/bin/bash
+          XRES_W="{{ xres_w }}"
+          XRES_H="{{ xres_h }}"
+
+          command -v xrandr >/dev/null 2>&1 || exit 0
+          [ -n "${DISPLAY:-}" ] || export DISPLAY=:0
+          xrandr --version >/dev/null 2>&1 || exit 0
+
+          _apply_mode() {
+              local out="$1" w="$2" h="$3"
+              xrandr --output "${out}" --mode "${w}x${h}" 2>/dev/null && return 0
+              command -v cvt >/dev/null 2>&1 || return 1
+              local cvt_out modename modeparams
+              cvt_out=$(cvt "${w}" "${h}" 60 2>/dev/null)
+              modename=$(printf '%s' "${cvt_out}" | awk '/Modeline/{ gsub(/"/, "", $2); print $2 }')
+              modeparams=$(printf '%s' "${cvt_out}" | awk '/Modeline/{ for(i=3;i<=NF;i++) printf "%s ",$i }')
+              [ -n "${modename}" ] && [ -n "${modeparams}" ] || return 1
+              # shellcheck disable=SC2086
+              xrandr --newmode "${modename}" ${modeparams} 2>/dev/null || true
+              xrandr --addmode "${out}" "${modename}" 2>/dev/null || true
+              xrandr --output "${out}" --mode "${modename}" 2>/dev/null && return 0
+              return 1
+          }
+
+          _applied=0
+          while IFS= read -r OUTPUT; do
+              [ -n "${OUTPUT}" ] || continue
+              if _apply_mode "${OUTPUT}" "${XRES_W}" "${XRES_H}"; then
+                  _applied=1
+              else
+                  xrandr --output "${OUTPUT}" --auto 2>/dev/null || true
+              fi
+          done < <(xrandr 2>/dev/null | awk '/\bconnected\b/{ print $1 }')
+
+          if [ "${_applied}" -eq 0 ]; then
+              xrandr --fb "${XRES_W}x${XRES_H}" 2>/dev/null || true
+          fi
+        mode: "0755"
+
+    - name: Symlink bull-display.sh to profile.d
+      ansible.builtin.file:
+        src: /usr/local/bin/bull-display.sh
+        dest: /etc/profile.d/bull-display.sh
+        state: link
+
+    - name: Deploy bull-set-resolution.sh
+      ansible.builtin.copy:
+        dest: /usr/local/bin/bull-set-resolution.sh
+        content: |
+          #!/bin/bash
+          W="${1:-1920}"
+          H="${2:-1080}"
+          XUSER=$(ps -eo user,comm --no-headers | awk '/mate-session/{print $1; exit}')
+          [ -z "${XUSER}" ] && XUSER=$(ps -eo user,comm --no-headers | awk '/xfce4-session|gnome-session/{print $1; exit}')
+          [ -z "${XUSER}" ] && exit 0
+          export DISPLAY=:0
+          export XAUTHORITY="/home/${XUSER}/.Xauthority"
+          [ -f "${XAUTHORITY}" ] || exit 0
+          OUT=$(xrandr 2>/dev/null | awk '/\bconnected\b/{print $1; exit}')
+          [ -z "${OUT}" ] && exit 0
+          xrandr --output "${OUT}" --mode "${W}x${H}" 2>/dev/null && exit 0
+          if command -v cvt >/dev/null 2>&1; then
+              MODELINE=$(cvt "${W}" "${H}" 60 2>/dev/null | grep Modeline)
+              MODENAME=$(echo "${MODELINE}" | awk '{gsub(/"/, "", $2); print $2}')
+              MODEPARAMS=$(echo "${MODELINE}" | awk '{for(i=3;i<=NF;i++) printf "%s ",$i}')
+              if [ -n "${MODENAME}" ]; then
+                  xrandr --newmode "${MODENAME}" ${MODEPARAMS} 2>/dev/null || true
+                  xrandr --addmode "${OUT}" "${MODENAME}" 2>/dev/null || true
+                  xrandr --output "${OUT}" --mode "${MODENAME}" 2>/dev/null && exit 0
+              fi
+          fi
+          xrandr --fb "${W}x${H}" 2>/dev/null || true
+        mode: "0755"
+
+    - name: Write display autostart desktop entry
+      ansible.builtin.copy:
+        dest: /etc/xdg/autostart/bull-display.desktop
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Name=BULL Display Setup
+          Exec=bash -c 'export DISPLAY=:0; sleep 3; /usr/local/bin/bull-display.sh; sleep 5; /usr/local/bin/bull-display.sh'
+          Hidden=false
+          NoDisplay=false
+          X-GNOME-Autostart-enabled=true
+          X-MATE-Autostart-enabled=true
+        mode: "0644"
+
+    - name: Configure GRUB video resolution
+      ansible.builtin.shell: |
+        if [ -f /etc/default/grub ]; then
+          sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 video=Virtual-1:{{ xres_w }}x{{ xres_h }}e"/' /etc/default/grub
+          sed -i 's/video=[^ "]*//g' /etc/default/grub
+          sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="video=Virtual-1:{{ xres_w }}x{{ xres_h }}e /' /etc/default/grub
+          update-grub 2>/dev/null || true
+        fi
+      changed_when: true
+
+    - name: Configure file descriptor limits
+      community.general.pam_limits:
+        domain: "*"
+        limit_type: "{{ item }}"
+        limit_item: nofile
+        value: "65536"
+      loop:
+        - soft
+        - hard
+
+    - name: Configure sysctl for pentest networking
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_set: true
+        reload: true
+      loop:
+        - { key: "net.core.somaxconn", value: "65535" }
+        - { key: "net.ipv4.tcp_max_syn_backlog", value: "65535" }
+        - { key: "net.ipv4.ip_local_port_range", value: "1024 65535" }
+
+    - name: Clone toolkit repositories
+      ansible.builtin.git:
+        repo: "{{ item }}"
+        dest: "/opt/toolkits/{{ item | basename | regex_replace('\\.git$', '') }}"
+      loop: "{{ toolkit_urls }}"
+      when:
+        - toolkit_urls | length > 0
+        - bull_vm_user | length > 0
+      become_user: "{{ bull_vm_user }}"
+      ignore_errors: true
+
+    - name: Clone toolkit repositories as root
+      ansible.builtin.git:
+        repo: "{{ item }}"
+        dest: "/opt/toolkits/{{ item | basename | regex_replace('\\.git$', '') }}"
+      loop: "{{ toolkit_urls }}"
+      when:
+        - toolkit_urls | length > 0
+        - bull_vm_user | length == 0
+      ignore_errors: true
+
+    - name: Install extra packages
+      ansible.builtin.apt:
+        name: "{{ extra_packages }}"
+        state: present
+      when:
+        - extra_packages | length > 0
+        - network_available | bool
+
+    - name: Autoremove unnecessary packages
+      ansible.builtin.apt:
+        autoremove: true
+        autoclean: true
+
+  handlers:
+    - name: Restart SSH
+      ansible.builtin.service:
+        name: sshd
+        state: restarted

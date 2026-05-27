@@ -1,0 +1,133 @@
+---
+# =============================================================================
+# BULL - Ansible Playbook (Optional)
+# Alternative to shell provisioning for complex setups
+# Usage: ansible-playbook -i inventory ansible-playbook.yml
+# =============================================================================
+
+- name: BULL Kali Linux Provisioning
+  hosts: all
+  become: true
+  vars:
+    pentest_dirs:
+      - /opt/pentest/scans
+      - /opt/pentest/loot
+      - /opt/pentest/notes
+      - /opt/pentest/exploits
+      - /opt/toolkits
+
+    essential_packages:
+      - git
+      - curl
+      - wget
+      - vim
+      - tmux
+      - htop
+      - net-tools
+      - dnsutils
+      - jq
+      - tree
+      - unzip
+
+    security_tools:
+      - nmap
+      - gobuster
+      - sqlmap
+      - nikto
+      - dirb
+      - enum4linux
+      - smbclient
+
+    vpn_packages:
+      - openvpn
+      - wireguard
+      - iptables-persistent
+
+  tasks:
+    # ------ System Update ------
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Full system upgrade
+      ansible.builtin.apt:
+        upgrade: full
+      register: upgrade_result
+
+    # ------ Package Installation ------
+    - name: Install essential packages
+      ansible.builtin.apt:
+        name: "{{ essential_packages }}"
+        state: present
+
+    - name: Install security tools
+      ansible.builtin.apt:
+        name: "{{ security_tools }}"
+        state: present
+
+    - name: Install VPN packages
+      ansible.builtin.apt:
+        name: "{{ vpn_packages }}"
+        state: present
+
+    # ------ Directory Setup ------
+    - name: Create pentest directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: "{{ pentest_dirs }}"
+
+    # ------ SSH Configuration ------
+    - name: Configure SSH - PermitRootLogin
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitRootLogin"
+        line: "PermitRootLogin yes"
+      notify: Restart SSH
+
+    - name: Configure SSH - PubkeyAuthentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PubkeyAuthentication"
+        line: "PubkeyAuthentication yes"
+      notify: Restart SSH
+
+    # ------ System Tuning ------
+    - name: Set timezone to UTC
+      community.general.timezone:
+        name: UTC
+
+    - name: Configure file descriptor limits
+      ansible.builtin.pam_limits:
+        domain: "*"
+        limit_type: "{{ item }}"
+        limit_item: nofile
+        value: "65536"
+      loop:
+        - soft
+        - hard
+
+    - name: Optimize network for scanning
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_set: true
+        reload: true
+      loop:
+        - { key: "net.core.somaxconn", value: "65535" }
+        - { key: "net.ipv4.tcp_max_syn_backlog", value: "65535" }
+        - { key: "net.ipv4.ip_local_port_range", value: "1024 65535" }
+
+    # ------ Cleanup ------
+    - name: Remove unnecessary packages
+      ansible.builtin.apt:
+        autoremove: true
+        autoclean: true
+
+  handlers:
+    - name: Restart SSH
+      ansible.builtin.service:
+        name: sshd
+        state: restarted

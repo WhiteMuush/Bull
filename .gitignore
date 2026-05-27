@@ -1,0 +1,63 @@
+# BULL runtime data
+.bull/
+*.bull/
+
+# Vagrant
+.vagrant/
+*.vagrant/
+
+# VM-specific files
+vms/
+!vms/.gitkeep
+
+# Toolkit registry (user-specific)
+toolkits.json
+
+# Inventory (user-specific)
+data/inventory.json
+
+# Credentials (security-sensitive)
+.credentials
+.credentials.gpg
+.gnupg/
+.ecryptfs/
+
+# VPN configs (security-sensitive)
+*.ovpn
+*.conf
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.FUSE*
+.Directory
+
+# IDE/Editor
+.idea/
+.vscode/
+*.sublime-*
+*.code-workspace
+*.tmproj
+.project
+.settings/
+
+# Shellcheck reports
+shellcheck-report.*
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+
+# WSL shim binaries
+.shim/
+
+# Project documentation
+docs/
+!docs/.gitkeep

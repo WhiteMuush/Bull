@@ -1,0 +1,104 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# =============================================================================
+# BULL - Vagrantfile Template
+# Auto-generated. Do not edit manually.
+# Provider: %%PROVIDER%%
+# =============================================================================
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "%%BOX%%"
+  config.vm.hostname = "%%VM_NAME%%"
+
+  # ---------------------------------------------------------------------------
+  # vagrant-vbguest: auto-installs VirtualBox Guest Additions matching the
+  # host VirtualBox version. Without version-matched GA, VMSVGA resolution
+  # stays stuck at 800x600 regardless of xrandr/xorg.conf configuration.
+  # Install once: vagrant plugin install vagrant-vbguest
+  # ---------------------------------------------------------------------------
+  if Vagrant.has_plugin?("vagrant-vbguest")
+    config.vbguest.auto_update  = true
+    config.vbguest.no_install   = false
+    config.vbguest.installer_options = { allow_kernel_upgrade: true }
+  end
+
+  # Disable default synced folder (security: prevent host file exposure)
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  # SSH configuration
+  config.ssh.insert_key    = true
+  config.ssh.forward_agent = false
+
+  # Parrot Security OS ships with user "user" not "vagrant".
+  # The Vagrant insecure key is injected into /home/user/.ssh/authorized_keys
+  # by _patch_parrot_qcow2 during box installation.
+  if %%UEFI%%
+    config.ssh.username = 'user'
+    config.ssh.password = 'user'
+  end
+
+  # ---------------------------------------------------------------------------
+  # VirtualBox provider
+  # VMSVGA graphics controller: required for Guest Additions dynamic resize and
+  # seamless cursor integration. 128 MB VRAM covers up to 4K.
+  # ---------------------------------------------------------------------------
+  config.vm.provider "virtualbox" do |vb|
+    vb.name   = "bull-%%VM_NAME%%"
+    vb.memory = "%%RAM%%"
+    vb.cpus   = %%CPU%%
+    vb.customize ["modifyvm", :id, "--vram",               "128"]
+    vb.customize ["modifyvm", :id, "--graphicscontroller", "vmsvga"]
+    vb.customize ["modifyvm", :id, "--clipboard-mode",     "disabled"]
+    vb.customize ["modifyvm", :id, "--draganddrop",        "disabled"]
+    vb.customize ["modifyvm", :id, "--audio",              "none"]
+    vb.customize ["modifyvm", :id, "--nested-hw-virt",     "on"]
+    vb.customize ["setextradata", :id,
+                  "CustomVideoMode1", "%%RESOLUTION%%x32"]
+  end
+
+  # ---------------------------------------------------------------------------
+  # libvirt/KVM provider
+  # SPICE + QXL: far better than VNC for real-time cursor and auto-resize.
+  # spice-vdagent inside the guest handles clipboard, seamless pointer, resize.
+  # ---------------------------------------------------------------------------
+config.vm.provider "libvirt" do |lv|
+    lv.title             = "bull-%%VM_NAME%%"
+    lv.memory            = %%RAM%%
+    lv.cpus              = %%CPU%%
+    lv.driver            = "kvm"
+    lv.nested            = true
+    lv.graphics_type     = "spice"
+    lv.video_type        = "qxl"
+    lv.video_vram        = 65536
+    lv.storage_pool_name = "default"
+# Parrot Security OS uses UEFI boot (GPT + EFI System Partition).
+  # Without this, vagrant-libvirt defaults to SeaBIOS and the VM won't boot.
+  if %%UEFI%%
+    lv.loader = '%%OVMF_LOADER%%'
+    lv.nvram = '%%OVMF_VARS%%'
+  end
+    # virtio-serial channel required by spice-vdagent for auto-resize,
+    # clipboard sharing and seamless cursor integration.
+    lv.channel :type => 'spicevmc', :target_name => 'com.redhat.spice.0', :target_type => 'virtio'
+    # USB tablet: sends absolute coordinates instead of relative mouse movements.
+    # Fixes cursor offset when switching between windowed and full-screen in SPICE.
+    lv.input :type => 'tablet', :bus => 'usb'
+  end
+
+  # Network: only configure for VirtualBox (libvirt uses its default NAT)
+  if ENV['VAGRANT_DEFAULT_PROVIDER'] != 'libvirt'
+    config.vm.network "public_network"
+  end
+
+  # Provisioning via shell script
+  config.vm.provision "shell", path: "provision.sh", privileged: true,
+    env: {
+      "BULL_VM_USER"       => '%%USERNAME%%',
+      "BULL_VM_PASS"       => '%%PLAIN_PASSWORD%%',
+      "BULL_VM_KEYBOARD"   => '%%KEYBOARD%%',
+      "BULL_VM_RESOLUTION" => '%%RESOLUTION%%',
+      "BULL_SKIP_UPGRADE"  => '%%SKIP_UPGRADE%%',
+      "TOOLKIT_URLS"       => '%%TOOLKIT_URLS%%',
+      "EXTRA_PACKAGES"     => '%%EXTRA_PACKAGES%%'
+    }
+end
