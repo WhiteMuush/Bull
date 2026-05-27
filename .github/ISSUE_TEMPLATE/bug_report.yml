@@ -1,0 +1,72 @@
+name: Bug Report
+description: Report a bug in Bull
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in the details below.
+
+  - type: input
+    id: version
+    attributes:
+      label: Bull version
+      description: "Output of `bull --version`"
+      placeholder: "BULL v1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Virtualization provider
+      options:
+        - libvirt (KVM)
+        - VirtualBox
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Guest OS
+      options:
+        - Kali Linux
+        - Parrot Security
+    validations:
+      required: true
+
+  - type: textarea
+    id: host
+    attributes:
+      label: Host environment
+      description: "OS, WSL2 or native Linux, bash version"
+      placeholder: "Ubuntu 24.04 on WSL2, bash 5.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: "Describe the bug and what you expected instead."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: "Minimal steps to trigger the bug."
+      placeholder: |
+        1. Run `sudo bull create test-vm --os kali`
+        2. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: "Paste any error messages or log output."
+      render: shell
