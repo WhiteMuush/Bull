@@ -1629,11 +1629,11 @@ _tui_render() {
 # and re-enter/toggle the alternate screen buffer, wiping the output.
 # =============================================================================
 _show_goodbye() {
-    trap - EXIT INT TERM HUP       # désactive tous les traps avant de quitter
-    printf '\033[?1049l'           # quitte le buffer alternatif
-    printf '\033[?25h'             # affiche le curseur
-    printf '\033[0m'               # reset couleurs
-    stty sane 2>/dev/null || true  # restaure le terminal
+    trap - EXIT INT TERM HUP       # clear all traps before leaving
+    printf '\033[?1049l'           # exit the alternate screen buffer
+    printf '\033[?25h'             # show the cursor
+    printf '\033[0m'               # reset colors
+    stty sane 2>/dev/null || true  # restore the terminal
     clear
     echo -e "\n${CYAN}Thanks for using BULL!${RESET}"
     echo -e "${RED}See you soon! <3${RESET}\n"
