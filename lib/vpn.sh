@@ -107,7 +107,7 @@ configure_vpn() {
     fi
 
     # Upload config to VM
-    (cd "${vm_dir}" && vagrant upload "vpn/${config_basename}" "/tmp/${config_basename}") || {
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" upload "vpn/${config_basename}" "/tmp/${config_basename}") || {
         log_error "Failed to upload VPN config to VM"
         return 1
     }
@@ -172,13 +172,13 @@ PROVISION_EOF
     tmp_script=$(mktemp /tmp/bull_ovpn_XXXXXX.sh)
     chmod 600 "${tmp_script}"
     echo "${setup_script}" > "${tmp_script}"
-    (cd "${vm_dir}" && vagrant upload "${tmp_script}" "/tmp/bull_ovpn_setup.sh") || {
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" upload "${tmp_script}" "/tmp/bull_ovpn_setup.sh") || {
         rm -f "${tmp_script}"
         log_error "Failed to upload OpenVPN setup script to VM"
         return 1
     }
     rm -f "${tmp_script}"
-    (cd "${vm_dir}" && vagrant ssh -c "sudo bash /tmp/bull_ovpn_setup.sh && rm -f /tmp/bull_ovpn_setup.sh" 2>&1) || {
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" ssh -c "sudo bash /tmp/bull_ovpn_setup.sh && rm -f /tmp/bull_ovpn_setup.sh" 2>&1) || {
         log_error "Failed to configure OpenVPN inside VM"
         return 1
     }
@@ -227,13 +227,13 @@ PROVISION_EOF
     tmp_script=$(mktemp /tmp/bull_wg_XXXXXX.sh)
     chmod 600 "${tmp_script}"
     echo "${setup_script}" > "${tmp_script}"
-    (cd "${vm_dir}" && vagrant upload "${tmp_script}" "/tmp/bull_wg_setup.sh") || {
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" upload "${tmp_script}" "/tmp/bull_wg_setup.sh") || {
         rm -f "${tmp_script}"
         log_error "Failed to upload WireGuard setup script to VM"
         return 1
     }
     rm -f "${tmp_script}"
-    (cd "${vm_dir}" && vagrant ssh -c "sudo bash /tmp/bull_wg_setup.sh && rm -f /tmp/bull_wg_setup.sh" 2>&1) || {
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" ssh -c "sudo bash /tmp/bull_wg_setup.sh && rm -f /tmp/bull_wg_setup.sh" 2>&1) || {
         log_error "Failed to configure WireGuard inside VM"
         return 1
     }
@@ -313,13 +313,13 @@ PROVISION_EOF
     tmp_script=$(mktemp /tmp/bull_ks_XXXXXX.sh)
     chmod 600 "${tmp_script}"
     echo "${killswitch_script}" > "${tmp_script}"
-    (cd "${vm_dir}" && vagrant upload "${tmp_script}" "/tmp/bull_ks_setup.sh") || {
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" upload "${tmp_script}" "/tmp/bull_ks_setup.sh") || {
         rm -f "${tmp_script}"
         log_error "Failed to upload kill switch script to VM"
         return 1
     }
     rm -f "${tmp_script}"
-    (cd "${vm_dir}" && vagrant ssh -c "sudo bash /tmp/bull_ks_setup.sh && rm -f /tmp/bull_ks_setup.sh" 2>&1) || {
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" ssh -c "sudo bash /tmp/bull_ks_setup.sh && rm -f /tmp/bull_ks_setup.sh" 2>&1) || {
         log_error "Failed to configure kill switch"
         return 1
     }
@@ -381,7 +381,7 @@ PROVISION_EOF
         return 0
     fi
 
-    (cd "${vm_dir}" && vagrant ssh -c "${check_script}" 2>&1) || {
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" ssh -c "${check_script}" 2>&1) || {
         log_error "VPN verification failed"
         return 1
     }
