@@ -40,7 +40,7 @@ brew install shellcheck        # macOS
 5. Test with at least one provider (libvirt or VirtualBox)
 6. Open a PR against `main`
 
-For adding a new security tool to the toolkit manager, see [docs/ADDING_A_TOOL.md](docs/ADDING_A_TOOL.md).
+For adding a new security tool to the toolkit manager, see [ADDING_A_TOOL.md](ADDING_A_TOOL.md).
 
 ## PR Checklist
 

@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/WhiteMuush/Bull/actions/workflows/ci.yml/badge.svg)](https://github.com/WhiteMuush/Bull/actions/workflows/ci.yml)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](docs/CONTRIBUTING.md)
 
 Launch a fully-equipped pentest VM in seconds with pre-installed security tools, VPN protection, and encrypted storage.
 
@@ -133,7 +133,7 @@ docs/
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and PR checklist.
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup, conventions, and PR checklist.
 
 ## License
 
