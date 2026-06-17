@@ -347,7 +347,7 @@ ensure_vagrant_box() {
     # Box registered but image missing - clean up and re-register
     if [[ "${box_registered}" -eq 1 ]] && [[ "${image_exists}" -eq 0 ]]; then
         log_warn "Box '${box}' registered but image file missing - cleaning up"
-        vagrant box remove "${box}" --force 2>/dev/null || true
+        "${VAGRANT_CMD}" box remove "${box}" --force 2>/dev/null || true
         rm -rf "${vagrant_home}/boxes/${encoded_name}" 2>/dev/null || true
     fi
 
@@ -750,7 +750,7 @@ _ensure_parrot_qcow2() {
     # Box registered but qcow2 missing - clean up and re-register
     if [[ "${box_registered}" -eq 1 ]] && [[ "${qcow2_exists}" -eq 0 ]]; then
         log_warn "Parrot box registered but qcow2 file missing - cleaning up"
-        vagrant box remove "${box_name}" --force 2>/dev/null || true
+        "${VAGRANT_CMD}" box remove "${box_name}" --force 2>/dev/null || true
         rm -rf "${vagrant_home}/boxes/${encoded_name}" 2>/dev/null || true
     fi
 
@@ -1028,7 +1028,7 @@ _ensure_parrot_box() {
     # Box registered but image missing - clean up and re-download
     if [[ "${box_registered}" -eq 1 ]] && [[ "${image_exists}" -eq 0 ]]; then
         log_warn "Parrot box registered but image file missing - cleaning up"
-        vagrant box remove "${box_name}" --force 2>/dev/null || true
+        "${VAGRANT_CMD}" box remove "${box_name}" --force 2>/dev/null || true
         rm -rf "${vagrant_home}/boxes/${encoded_name}" 2>/dev/null || true
     fi
 

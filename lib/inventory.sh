@@ -374,7 +374,7 @@ inventory_sync() {
 
         # Get actual status from Vagrant
         local actual_status
-        actual_status=$(cd "${vm_dir}" && vagrant status --machine-readable 2>/dev/null \
+        actual_status=$(cd "${vm_dir}" && "${VAGRANT_CMD}" status --machine-readable 2>/dev/null \
             | grep -E ',state,' | tail -1 | cut -d',' -f4)
 
         if [[ -n "${actual_status}" ]]; then
@@ -383,7 +383,7 @@ inventory_sync() {
             # Update IP if running
             if [[ "${actual_status}" == "running" ]]; then
                 local ip
-                ip=$(cd "${vm_dir}" && vagrant ssh -c "hostname -I" 2>/dev/null \
+                ip=$(cd "${vm_dir}" && "${VAGRANT_CMD}" ssh -c "hostname -I" 2>/dev/null \
                     | awk '{print $1}' | tr -d '\r')
                 if [[ -n "${ip}" ]]; then
                     inventory_update "${vm_name}" "ip" "${ip}"
