@@ -9,8 +9,8 @@
 #   Arch / Manjaro              (pacman)
 #   openSUSE Leap / Tumbleweed  (zypper)
 #
-# Architectures : x86_64, arm64
-# Usage         : sudo ./install.sh [--provider virtualbox|libvirt] [--skip-provider]
+# Architectures: x86_64, arm64
+# Usage:         sudo ./install.sh [--provider virtualbox|libvirt] [--skip-provider]
 # =============================================================================
 set -euo pipefail
 IFS=$'\n\t'

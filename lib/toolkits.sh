@@ -225,7 +225,7 @@ PROVISION_EOF
 
     # Pass validated values via environment variables — no string interpolation
     # in the script body, eliminating shell injection risk.
-    if (cd "${vm_dir}" && vagrant ssh -c "${install_script}" 2>&1); then
+    if (cd "${vm_dir}" && "${VAGRANT_CMD}" ssh -c "${install_script}" 2>&1); then
         log_success "Toolkit '${repo_name}' installed on '${vm_name}'"
         return 0
     else
@@ -348,7 +348,7 @@ list_toolkits() {
         return 0
     fi
 
-    (cd "${vm_dir}" && vagrant ssh -c \
+    (cd "${vm_dir}" && "${VAGRANT_CMD}" ssh -c \
         "ls -1 '${TOOLKITS_INSTALL_DIR}/' 2>/dev/null || echo '(none)'" 2>&1) || {
         log_error "Failed to list toolkits"
         return 1

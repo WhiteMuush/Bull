@@ -545,8 +545,8 @@ try_install_package() {
             brew install "${pkg_name}" || install_ok=1
             ;;
         apt)
-            # Vagrant n'est plus dans les dépôts Ubuntu 24.04+ (Noble)
-            # Installer depuis le dépôt officiel HashiCorp
+            # Vagrant is no longer in the Ubuntu 24.04+ (Noble) repos
+            # Install from the official HashiCorp repository
             if [[ "${cmd_name}" == "vagrant" ]]; then
                 log_info "Vagrant not in apt repos (Ubuntu 24.04+). Installing from HashiCorp..."
                 log_info "This requires adding the HashiCorp repository."
