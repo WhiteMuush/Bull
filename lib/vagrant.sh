@@ -1449,7 +1449,7 @@ create_vm() {
             echo "--- end of log ---"
         } >> "${BULL_HOME}/bull-error.log" 2>/dev/null || true
         rm -f "${vagrant_log}"
-        log_error "To retry: cd ${vm_dir} && vagrant up --provider=${BULL_PROVIDER}"
+        log_error "To retry: cd ${vm_dir} && VAGRANT_DEFAULT_PROVIDER=${BULL_PROVIDER} vagrant up --provider=${BULL_PROVIDER}"
         inventory_update "${vm_name}" "status" "not_created"
         return 1
     fi

@@ -85,8 +85,14 @@ config.vm.provider "libvirt" do |lv|
     lv.input :type => 'tablet', :bus => 'usb'
   end
 
-  # Network: only configure for VirtualBox (libvirt uses its default NAT)
-  if ENV['VAGRANT_DEFAULT_PROVIDER'] != 'libvirt'
+  # Network: only configure for VirtualBox (libvirt uses its default NAT).
+  # Detect libvirt from the env var OR the `--provider` CLI flag, so manual
+  # retries like `vagrant up --provider=libvirt` (which don't export
+  # VAGRANT_DEFAULT_PROVIDER) don't wrongly add a bridged public_network.
+  using_libvirt = ENV['VAGRANT_DEFAULT_PROVIDER'] == 'libvirt' ||
+                  ARGV.include?('libvirt') ||
+                  ARGV.include?('--provider=libvirt')
+  unless using_libvirt
     config.vm.network "public_network"
   end
 
