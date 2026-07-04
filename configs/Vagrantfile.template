@@ -68,7 +68,7 @@ config.vm.provider "libvirt" do |lv|
     lv.driver            = "kvm"
     lv.nested            = true
     lv.graphics_type     = "spice"
-    lv.video_type        = "qxl"
+    lv.video_type        = "virtio"
     lv.video_vram        = 65536
     lv.storage_pool_name = "default"
 # Parrot Security OS uses UEFI boot (GPT + EFI System Partition).
