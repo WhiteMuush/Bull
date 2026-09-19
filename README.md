@@ -14,7 +14,7 @@ Spin up a fully equipped, hardened pentest VM in one command. Bull wraps Vagrant
 - **Auto-provisioning** — Kali or Parrot, ready to use out of the box
 - **VPN kill switch** — iptables rules drop all traffic if the VPN drops (OpenVPN & WireGuard)
 - **Encrypted /home** — user data protected with ecryptfs
-- **GPG credentials** — passwords encrypted with AES256 + SHA512 (65M iterations), never stored in plaintext
+- **GPG credentials**: passwords encrypted with GPG symmetric AES256 + SHA512 (65M-iteration s2k), unlocked by a passphrase you set via `BULL_CREDENTIALS_PASSPHRASE` or an interactive prompt, never written to disk in plaintext
 - **Snapshots** — roll back before any risky operation
 - **Toolkit manager** — save Git-based security tools once, install them on every new VM
 - **Cross-provider** — libvirt/KVM or VirtualBox, auto-detected; WSL2 supported

@@ -1206,9 +1206,11 @@ handle_menu_choice() {
             for rc_file in ~/.bashrc ~/.zshrc ~/.profile; do
                 if [[ -f "${rc_file}" ]]; then
                     if ! grep -q "alias bull=" "${rc_file}" 2>/dev/null; then
-                        echo "" >> "${rc_file}"
-                        echo "# BULL alias (added by bull.sh)" >> "${rc_file}"
-                        echo "${alias_line}" >> "${rc_file}"
+                        {
+                            echo ""
+                            echo "# BULL alias (added by bull.sh)"
+                            echo "${alias_line}"
+                        } >> "${rc_file}"
                         echo "  ${DIM}Added alias to ${rc_file}${RESET}"
                     fi
                 fi

@@ -49,6 +49,72 @@ detect_vpn_type() {
 }
 
 # ---------------------------------------------------------------------------
+# Endpoint parsing
+# ---------------------------------------------------------------------------
+# Extract the VPN server endpoint from a config file.
+# Prints "<host> <port> <proto>" (proto normalized to udp or tcp).
+# Returns 1 when no endpoint can be found.
+_parse_vpn_endpoint() {
+    local config_file="$1"
+    [[ -f "${config_file}" ]] || return 1
+
+    local vpn_type
+    vpn_type=$(detect_vpn_type "${config_file}") || return 1
+
+    local host="" port="" proto=""
+
+    if [[ "${vpn_type}" == "wireguard" ]]; then
+        local endpoint
+        endpoint=$(grep -iE '^[[:space:]]*Endpoint[[:space:]]*=' "${config_file}" \
+            | head -n1 | sed -E 's/^[[:space:]]*[Ee]ndpoint[[:space:]]*=[[:space:]]*//; s/[[:space:]]+$//')
+        [[ -n "${endpoint}" ]] || return 1
+        # Split on the last colon so bracketed IPv6 hosts survive.
+        port="${endpoint##*:}"
+        host="${endpoint%:*}"
+        host="${host#[}"; host="${host%]}"
+        proto="udp"
+    else
+        local remote_line
+        remote_line=$(grep -iE '^[[:space:]]*remote[[:space:]]+' "${config_file}" | head -n1)
+        [[ -n "${remote_line}" ]] || return 1
+        local -a fields
+        read -ra fields <<< "${remote_line}"
+        host="${fields[1]:-}"
+        port="${fields[2]:-1194}"
+        proto="${fields[3]:-}"
+        if [[ -z "${proto}" ]]; then
+            proto=$(grep -iE '^[[:space:]]*proto[[:space:]]+' "${config_file}" \
+                | head -n1 | awk '{print $2}')
+        fi
+        proto="${proto:-udp}"
+    fi
+
+    [[ -n "${host}" && -n "${port}" ]] || return 1
+    case "${proto,,}" in
+        tcp*) proto="tcp" ;;
+        *)    proto="udp" ;;
+    esac
+    printf '%s %s %s\n' "${host}" "${port}" "${proto}"
+}
+
+# Build the iptables OUTPUT ACCEPT rules that let the tunnel bootstrap and
+# recover after a drop: one rule per known VPN server IP on the physical
+# interface, plus DNS so a hostname endpoint can be re-resolved.
+# Usage: _killswitch_bootstrap_rules <port> <proto> [server_ip...]
+# Note: allowing port 53 lets a few DNS lookups leave outside the tunnel.
+# That is the price of automatic reconnection when the endpoint is a name.
+_killswitch_bootstrap_rules() {
+    local port="$1" proto="$2"; shift 2 || true
+    local ip
+    for ip in "$@"; do
+        printf 'iptables -A OUTPUT -d %s -p %s --dport %s -j ACCEPT\n' \
+            "${ip}" "${proto}" "${port}"
+    done
+    printf 'iptables -A OUTPUT -p udp --dport 53 -j ACCEPT\n'
+    printf 'iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT\n'
+}
+
+# ---------------------------------------------------------------------------
 # VPN Configuration
 # ---------------------------------------------------------------------------
 
@@ -121,10 +187,32 @@ configure_vpn() {
             ;;
     esac
 
+    # Parse the server endpoint so the kill switch can whitelist it and let
+    # the tunnel reconnect on its own after a drop.
+    local ep ep_host ep_port ep_proto
+    local -a ep_ips=()
+    if ep=$(_parse_vpn_endpoint "${vm_dir}/vpn/${config_basename}"); then
+        read -r ep_host ep_port ep_proto <<< "${ep}"
+        if [[ "${ep_host}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            ep_ips=("${ep_host}")
+        else
+            mapfile -t ep_ips < <(getent ahostsv4 "${ep_host}" 2>/dev/null \
+                | awk '{print $1}' | sort -u)
+        fi
+    else
+        log_warn "Could not parse VPN endpoint; kill switch will block auto-reconnect after a drop."
+    fi
+
     # Set up kill switch
-    setup_kill_switch "${vm_name}" "${vpn_type}" || {
-        log_warn "Kill switch setup failed. VPN configured without kill switch."
-    }
+    if [[ -n "${ep_port:-}" ]]; then
+        setup_kill_switch "${vm_name}" "${vpn_type}" "${ep_port}" "${ep_proto}" "${ep_ips[@]}" || {
+            log_warn "Kill switch setup failed. VPN configured without kill switch."
+        }
+    else
+        setup_kill_switch "${vm_name}" "${vpn_type}" || {
+            log_warn "Kill switch setup failed. VPN configured without kill switch."
+        }
+    fi
 
     # Update inventory
     inventory_update "${vm_name}" "vpn_configured" "true"
@@ -250,6 +338,18 @@ PROVISION_EOF
 setup_kill_switch() {
     local vm_name="$1"
     local vpn_type="$2"
+    shift 2
+    local port="" proto=""
+    if [[ $# -ge 2 ]]; then
+        port="$1"; proto="$2"; shift 2
+    fi
+    local -a server_ips=("$@")
+
+    local bootstrap_rules=""
+    if [[ -n "${port}" && -n "${proto}" ]]; then
+        bootstrap_rules="$(_killswitch_bootstrap_rules "${port}" "${proto}" "${server_ips[@]}")"
+    fi
+
     local vm_dir
     vm_dir="$(get_vm_dir "${vm_name}")"
 
@@ -297,6 +397,10 @@ iptables -A INPUT -s 10.0.0.0/8 -j ACCEPT
 iptables -A INPUT -s 172.16.0.0/12 -j ACCEPT
 iptables -A INPUT -s 192.168.0.0/16 -j ACCEPT
 
+# Allow the tunnel to reach its server and re-resolve after a drop, so the
+# VPN can reconnect on its own instead of the kill switch cutting all traffic.
+__VPN_BOOTSTRAP_RULES__
+
 # Allow established connections
 iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
@@ -308,6 +412,8 @@ netfilter-persistent save > /dev/null 2>&1 || true
 
 echo "Kill switch configured on \${VPN_IFACE}"
 PROVISION_EOF
+
+    killswitch_script="${killswitch_script//__VPN_BOOTSTRAP_RULES__/${bootstrap_rules}}"
 
     local tmp_script
     tmp_script=$(mktemp /tmp/bull_ks_XXXXXX.sh)

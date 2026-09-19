@@ -51,8 +51,12 @@ logic lives in `lib/vagrant.sh` and `configs/Vagrantfile.template`.
 The rest of the codebase is provider-agnostic.
 
 ### Credential Security
-Passwords are encrypted with GPG (AES256, SHA512, 65M iterations) and
-stored in `.credentials.gpg` per VM. The plaintext password only exists
+Passwords are encrypted with GPG symmetric crypto (AES256, SHA512, 65M
+iteration s2k) under a passphrase the user provides, via the
+`BULL_CREDENTIALS_PASSPHRASE` environment variable or an interactive prompt,
+and stored in `.credentials.gpg` per VM. The passphrase is never written to
+disk, so the s2k hardening actually applies to a brute-force attempt against
+the file. The plaintext password only exists
 in memory during provisioning and is wiped from environment variables
 immediately after use. The Vagrantfile (which contains the password for
 provisioning) is `chmod 600` and sanitized post-provision.
