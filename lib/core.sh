@@ -280,54 +280,58 @@ setup_traps() {
 # in plaintext anywhere on disk.
 # ---------------------------------------------------------------------------
 
-_BULL_GPG_KEY_ID=""
-readonly _BULL_GPG_UID="bull-credentials@local"
+# Credentials are encrypted with GPG symmetric (passphrase-based) crypto.
+# The passphrase comes from BULL_CREDENTIALS_PASSPHRASE when set (for
+# unattended runs), otherwise Bull prompts on the terminal. Because the
+# protection is a passphrase the user holds, the AES256 + SHA512 + 65M
+# iteration s2k settings below actually apply: there is no key material left
+# unprotected on disk that would let anyone reading the files decrypt them.
 
-_bull_gpg_key_id() {
-    if [[ -n "${_BULL_GPG_KEY_ID}" ]]; then
-        echo "${_BULL_GPG_KEY_ID}"
+# Obtain the credentials passphrase on stdout.
+# $1 is "encrypt" (prompt twice and confirm) or "decrypt" (prompt once).
+# Returns 1 when no passphrase can be obtained (empty, mismatch, or no TTY).
+_bull_get_passphrase() {
+    local mode="$1"
+    if [[ -n "${BULL_CREDENTIALS_PASSPHRASE:-}" ]]; then
+        printf '%s' "${BULL_CREDENTIALS_PASSPHRASE}"
         return 0
     fi
-
-    local gpg_home="${BULL_HOME}/.gnupg"
-    mkdir -p "${gpg_home}"
-    chmod 700 "${gpg_home}"
-
-    if ! "gpg" --homedir "${gpg_home}" --list-keys "${_BULL_GPG_UID}" &>/dev/null; then
-        log_info "Generating GPG key for credential encryption..."
-        if ! "gpg" --homedir "${gpg_home}" --batch --passphrase "" \
-            --quick-generate-key "${_BULL_GPG_UID}" default default 0 2>&1; then
-            log_error "Failed to generate GPG key for credential encryption"
-            return 1
-        fi
+    if [[ ! -t 0 || ! -r /dev/tty ]]; then
+        log_error "No passphrase available (set BULL_CREDENTIALS_PASSPHRASE or run interactively)"
+        return 1
     fi
-
-    _BULL_GPG_KEY_ID="${_BULL_GPG_UID}"
-    echo "${_BULL_GPG_KEY_ID}"
+    local p1 p2
+    read -rs -p "  Credentials passphrase: " p1 < /dev/tty; printf '\n' >&2
+    [[ -n "${p1}" ]] || { log_error "Empty passphrase"; return 1; }
+    if [[ "${mode}" == "encrypt" ]]; then
+        read -rs -p "  Confirm passphrase: " p2 < /dev/tty; printf '\n' >&2
+        [[ "${p1}" == "${p2}" ]] || { log_error "Passphrases do not match"; return 1; }
+    fi
+    printf '%s' "${p1}"
 }
 
-# Encrypt a string with the BULL GPG key. Outputs armored ciphertext.
-# Uses AES256 + high iteration count to slow brute-force attacks.
+# Encrypt a string with GPG symmetric crypto. Outputs armored ciphertext.
 _bull_encrypt() {
     local plaintext="$1"
-    local gpg_home="${BULL_HOME}/.gnupg"
-    local key_id
-    key_id="$(_bull_gpg_key_id)" || return 1
+    local passphrase
+    passphrase="$(_bull_get_passphrase encrypt)" || return 1
 
-    echo "${plaintext}" | "gpg" --homedir "${gpg_home}" \
-        --encrypt --armor --recipient "${key_id}" \
-        --cipher-algo AES256 --s2k-digest SHA512 --s2k-count 65000000 \
-        --trust-model always --batch --no-tty 2>/dev/null
+    printf '%s' "${plaintext}" | "gpg" --batch --yes --no-tty \
+        --pinentry-mode loopback --passphrase-fd 3 \
+        --symmetric --cipher-algo AES256 --s2k-mode 3 \
+        --s2k-digest-algo SHA512 --s2k-count 65000000 \
+        --armor 3< <(printf '%s' "${passphrase}") 2>/dev/null
 }
 
-# Decrypt a GPG-encrypted string. Outputs plaintext.
+# Decrypt a GPG symmetric ciphertext. Outputs plaintext.
 _bull_decrypt() {
     local ciphertext="$1"
-    local gpg_home="${BULL_HOME}/.gnupg"
+    local passphrase
+    passphrase="$(_bull_get_passphrase decrypt)" || return 1
 
-    echo "${ciphertext}" | "gpg" --homedir "${gpg_home}" \
-        --decrypt --armor --batch --no-tty \
-        --passphrase "" 2>/dev/null
+    printf '%s' "${ciphertext}" | "gpg" --batch --yes --no-tty \
+        --pinentry-mode loopback --passphrase-fd 3 \
+        --decrypt --armor 3< <(printf '%s' "${passphrase}") 2>/dev/null
 }
 
 # Encrypt password and save to .credentials.gpg in the VM directory.
