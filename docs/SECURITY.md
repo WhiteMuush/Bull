@@ -34,7 +34,7 @@ will be coordinated privately before any public disclosure.
 
 ## Security Design
 
-- Passwords are encrypted with GPG (AES256 + SHA512, 65M iterations)
+- Passwords are encrypted with GPG symmetric crypto (AES256 + SHA512, 65M-iteration s2k) under a user-held passphrase (`BULL_CREDENTIALS_PASSPHRASE` or an interactive prompt)
 - VM credentials are never stored in plaintext
 - `/home` is encrypted with ecryptfs inside VMs
 - Default OS accounts are locked after provisioning
