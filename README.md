@@ -11,13 +11,13 @@ Spin up a fully equipped, hardened pentest VM in one command. Bull wraps Vagrant
 
 ## Features
 
-- **Auto-provisioning** — Kali or Parrot, ready to use out of the box
-- **VPN kill switch** — iptables rules drop all traffic if the VPN drops (OpenVPN & WireGuard)
-- **Encrypted /home** — user data protected with ecryptfs
+- **Auto-provisioning**: Kali or Parrot, ready to use out of the box
+- **VPN kill switch**: iptables rules drop all traffic if the VPN drops (OpenVPN & WireGuard)
+- **Encrypted /home**: user data protected with ecryptfs
 - **GPG credentials**: passwords encrypted with GPG symmetric AES256 + SHA512 (65M-iteration s2k), unlocked by a passphrase you set via `BULL_CREDENTIALS_PASSPHRASE` or an interactive prompt, never written to disk in plaintext
-- **Snapshots** — roll back before any risky operation
-- **Toolkit manager** — save Git-based security tools once, install them on every new VM
-- **Cross-provider** — libvirt/KVM or VirtualBox, auto-detected; WSL2 supported
+- **Snapshots**: roll back before any risky operation
+- **Toolkit manager**: save Git-based security tools once, install them on every new VM
+- **Cross-provider**: libvirt/KVM or VirtualBox, auto-detected; WSL2 supported
 
 ## Requirements
 
@@ -42,7 +42,7 @@ sudo ./bull.sh create my-vm --os kali
 sudo ./bull.sh
 ```
 
-> **First run takes 10–15 minutes.** It downloads the Vagrant box (~2–4 GB) and installs hypervisor dependencies. See the [Installation guide](https://github.com/WhiteMuush/Bull/wiki/Installation) for details.
+> **First run takes 10-15 minutes.** It downloads the Vagrant box (~2-4 GB) and installs hypervisor dependencies. See the [Installation guide](https://github.com/WhiteMuush/Bull/wiki/Installation) for details.
 
 After `bull init` you can call `bull` directly instead of `./bull.sh`.
 
@@ -64,14 +64,14 @@ Full command reference: [CLI Reference](https://github.com/WhiteMuush/Bull/wiki/
 
 The [**Wiki**](https://github.com/WhiteMuush/Bull/wiki) is the full manual:
 
-- [Installation](https://github.com/WhiteMuush/Bull/wiki/Installation) — host setup, providers, WSL2, disk reclamation
-- [Usage Guide](https://github.com/WhiteMuush/Bull/wiki/Usage-Guide) — creating, managing, and connecting to VMs
-- [CLI Reference](https://github.com/WhiteMuush/Bull/wiki/CLI-Reference) — every command and flag
-- [VPN & Kill Switch](https://github.com/WhiteMuush/Bull/wiki/VPN-and-Kill-Switch) — how traffic is locked to the tunnel
-- [Toolkit Manager](https://github.com/WhiteMuush/Bull/wiki/Toolkit-Manager) — save and deploy your own tools
-- [Architecture](https://github.com/WhiteMuush/Bull/wiki/Architecture) — how Bull works internally
-- [Security Model](https://github.com/WhiteMuush/Bull/wiki/Security-Model) — what Bull protects and what it does not
-- [Troubleshooting](https://github.com/WhiteMuush/Bull/wiki/Troubleshooting) — common errors and fixes
+- [Installation](https://github.com/WhiteMuush/Bull/wiki/Installation), host setup, providers, WSL2, disk reclamation
+- [Usage Guide](https://github.com/WhiteMuush/Bull/wiki/Usage-Guide), creating, managing, and connecting to VMs
+- [CLI Reference](https://github.com/WhiteMuush/Bull/wiki/CLI-Reference), every command and flag
+- [VPN & Kill Switch](https://github.com/WhiteMuush/Bull/wiki/VPN-and-Kill-Switch), how traffic is locked to the tunnel
+- [Toolkit Manager](https://github.com/WhiteMuush/Bull/wiki/Toolkit-Manager), save and deploy your own tools
+- [Architecture](https://github.com/WhiteMuush/Bull/wiki/Architecture), how Bull works internally
+- [Security Model](https://github.com/WhiteMuush/Bull/wiki/Security-Model), what Bull protects and what it does not
+- [Troubleshooting](https://github.com/WhiteMuush/Bull/wiki/Troubleshooting), common errors and fixes
 
 In-repo references: [Architecture](docs/ARCHITECTURE.md), [Adding a Tool](docs/ADDING_A_TOOL.md), [Contributing](docs/CONTRIBUTING.md), [Security Policy](docs/SECURITY.md).
 
@@ -92,7 +92,7 @@ docs/                Architecture, contributing, security, tooling guides
 
 ## Security
 
-Bull hardens every VM it creates: GPG-encrypted credentials, ecryptfs `/home`, locked default OS accounts, disabled synced folders, and an iptables VPN kill switch. These are technical measures only — they do not protect against user error or social engineering. See the [Security Model](https://github.com/WhiteMuush/Bull/wiki/Security-Model) and [SECURITY.md](docs/SECURITY.md) for reporting vulnerabilities.
+Bull hardens every VM it creates: GPG-encrypted credentials, ecryptfs `/home`, locked default OS accounts, disabled synced folders, and an iptables VPN kill switch. These are technical measures only, they do not protect against user error or social engineering. See the [Security Model](https://github.com/WhiteMuush/Bull/wiki/Security-Model) and [SECURITY.md](docs/SECURITY.md) for reporting vulnerabilities.
 
 ## Contributing
 
